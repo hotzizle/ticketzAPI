@@ -1,0 +1,197 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>ticketz-api</Name>
+  <Repository>hotzizle/ticketz</Repository>
+  <Registry>https://hub.docker.com/r/hotzizle/ticketz</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/hotzizle/ticketzAPI/issues</Support>
+  <Project>https://github.com/hotzizle/ticketzAPI</Project>
+  <Overview>Ticketz es un sistema de gestión de tickets basado en WhatsApp, construido con Node.js, React y PostgreSQL.</Overview>
+  <Category>Business:Other</Category>
+  <WebUI>http://[IP]:[PORT:8080]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/hotzizle/ticketzAPI/main/unraid/ticketz-api/ticketz-api.xml</TemplateURL>
+  <Icon>https://avatars.githubusercontent.com/u/161159746?s=200&v=4</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled>2024-04-17</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Description>Ticketz es un sistema de gestión de tickets basado en WhatsApp, construido con Node.js, React y PostgreSQL. Incluye:
+- Gestión de tickets vía WhatsApp
+- Interfaz de usuario moderna y responsive
+- API RESTful con PostgREST
+- Autenticación JWT
+- Base de datos PostgreSQL con RLS
+- Panel de administración con pgAdmin</Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>3000</HostPort>
+        <ContainerPort>3000</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+      <Port>
+        <HostPort>3001</HostPort>
+        <ContainerPort>3001</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+      <Port>
+        <HostPort>5432</HostPort>
+        <ContainerPort>5432</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+      <Port>
+        <HostPort>8080</HostPort>
+        <ContainerPort>8080</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+      <Port>
+        <HostPort>8081</HostPort>
+        <ContainerPort>8081</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/ticketz/postgres</HostDir>
+      <ContainerDir>/var/lib/postgresql/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+    <Volume>
+      <HostDir>/mnt/user/appdata/ticketz/redis</HostDir>
+      <ContainerDir>/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+    <Volume>
+      <HostDir>/mnt/user/appdata/ticketz/config</HostDir>
+      <ContainerDir>/app/config</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment>
+    <!-- Configuración de Base de Datos -->
+    <Variable>
+      <Value>ticketz</Value>
+      <Name>POSTGRES_USER</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>ticketz</Value>
+      <Name>POSTGRES_DB</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>POSTGRES_PASSWORD</Name>
+      <Mode>password</Mode>
+    </Variable>
+
+    <!-- Configuración de Dominio y Rutas -->
+    <Variable>
+      <Value/>
+      <Name>FRONTEND_HOST</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>/backend</Value>
+      <Name>BACKEND_PATH</Name>
+      <Mode/>
+    </Variable>
+
+    <!-- Configuración de JWT -->
+    <Variable>
+      <Value/>
+      <Name>PGRST_JWT_SECRET</Name>
+      <Mode>password</Mode>
+    </Variable>
+    <Variable>
+      <Value>http://localhost:3001</Value>
+      <Name>PGRST_JWT_AUD</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>http://localhost:3001</Value>
+      <Name>PGRST_CORS_ALLOW_ORIGIN</Name>
+      <Mode/>
+    </Variable>
+
+    <!-- Configuración de Cloudflare -->
+    <Variable>
+      <Value>false</Value>
+      <Name>USE_CLOUDFLARE</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>TUNNEL_TOKEN</Name>
+      <Mode>password</Mode>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>TUNNEL_HOSTNAME</Name>
+      <Mode/>
+    </Variable>
+
+    <!-- Configuración de pgAdmin -->
+    <Variable>
+      <Value/>
+      <Name>PGADMIN_EMAIL</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>PGADMIN_PASSWORD</Name>
+      <Mode>password</Mode>
+    </Variable>
+
+    <!-- Configuración de Email -->
+    <Variable>
+      <Value>admin@ticketz.host</Value>
+      <Name>EMAIL_ADDRESS</Name>
+      <Mode/>
+    </Variable>
+
+    <!-- Configuración de Zona Horaria -->
+    <Variable>
+      <Value>UTC</Value>
+      <Name>TZ</Name>
+      <Mode/>
+    </Variable>
+  </Environment>
+  <Labels/>
+  
+  <!-- Configuraciones de Base de Datos -->
+  <Config Name="PostgreSQL User" Target="POSTGRES_USER" Default="ticketz" Mode="" Description="Usuario de PostgreSQL"/>
+  <Config Name="PostgreSQL Database" Target="POSTGRES_DB" Default="ticketz" Mode="" Description="Nombre de la base de datos"/>
+  <Config Name="PostgreSQL Password" Target="POSTGRES_PASSWORD" Default="" Mode="password" Description="Contraseña de PostgreSQL"/>
+
+  <!-- Configuraciones de Dominio -->
+  <Config Name="Frontend Domain" Target="FRONTEND_HOST" Default="" Mode="" Description="Dominio del frontend (ej: ticketz.com)"/>
+  <Config Name="Backend Path" Target="BACKEND_PATH" Default="/backend" Mode="" Description="Ruta del backend (ej: /backend)"/>
+
+  <!-- Configuraciones de JWT -->
+  <Config Name="JWT Secret" Target="PGRST_JWT_SECRET" Default="" Mode="password" Description="Secreto para JWT"/>
+  <Config Name="JWT Audience" Target="PGRST_JWT_AUD" Default="http://localhost:3001" Mode="" Description="Dominio de la API"/>
+  <Config Name="CORS Origins" Target="PGRST_CORS_ALLOW_ORIGIN" Default="http://localhost:3001" Mode="" Description="Dominios permitidos para CORS"/>
+
+  <!-- Configuraciones de Cloudflare -->
+  <Config Name="Use Cloudflare" Target="USE_CLOUDFLARE" Default="false" Mode="" Description="¿Usar Cloudflare? (true/false)"/>
+  <Config Name="Cloudflare Tunnel Token" Target="TUNNEL_TOKEN" Default="" Mode="password" Description="Token del túnel de Cloudflare"/>
+  <Config Name="Cloudflare Domain" Target="TUNNEL_HOSTNAME" Default="" Mode="" Description="Dominio de Cloudflare"/>
+
+  <!-- Configuraciones de pgAdmin -->
+  <Config Name="pgAdmin Email" Target="PGADMIN_EMAIL" Default="" Mode="" Description="Email para pgAdmin"/>
+  <Config Name="pgAdmin Password" Target="PGADMIN_PASSWORD" Default="" Mode="password" Description="Contraseña para pgAdmin"/>
+
+  <!-- Configuraciones de Email -->
+  <Config Name="Admin Email" Target="EMAIL_ADDRESS" Default="admin@ticketz.host" Mode="" Description="Email del administrador"/>
+
+  <!-- Configuraciones de Zona Horaria -->
+  <Config Name="Time Zone" Target="TZ" Default="UTC" Mode="" Description="Zona horaria"/>
+</Container> 

@@ -1,0 +1,134 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>ticketz-api</Name>
+  <Repository>hotzizle/ticketz</Repository>
+  <Registry>https://hub.docker.com/r/hotzizle/ticketz</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/hotzizle/ticketzAPI/issues</Support>
+  <Project>https://github.com/hotzizle/ticketzAPI</Project>
+  <Overview>Ticketz es un sistema de gestión de tickets basado en WhatsApp, construido con Node.js, React y PostgreSQL.</Overview>
+  <Category>Business:Other</Category>
+  <WebUI>http://[IP]:[PORT:8080]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/hotzizle/ticketzAPI/main/unraid/ticketz-api/ticketz-api.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/hotzizle/ticketzAPI/main/icon.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled>2024-04-17</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Description>Ticketz es un sistema de gestión de tickets basado en WhatsApp, construido con Node.js, React y PostgreSQL. Incluye:
+- Gestión de tickets vía WhatsApp
+- Interfaz de usuario moderna y responsive
+- API RESTful con PostgREST
+- Autenticación JWT
+- Base de datos PostgreSQL con RLS
+- Panel de administración con pgAdmin</Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>3000</HostPort>
+        <ContainerPort>3000</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+      <Port>
+        <HostPort>3001</HostPort>
+        <ContainerPort>3001</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+      <Port>
+        <HostPort>5432</HostPort>
+        <ContainerPort>5432</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+      <Port>
+        <HostPort>8080</HostPort>
+        <ContainerPort>8080</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+      <Port>
+        <HostPort>8081</HostPort>
+        <ContainerPort>8081</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/ticketz/postgres</HostDir>
+      <ContainerDir>/var/lib/postgresql/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+    <Volume>
+      <HostDir>/mnt/user/appdata/ticketz/redis</HostDir>
+      <ContainerDir>/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+    <Volume>
+      <HostDir>/mnt/user/appdata/ticketz/config</HostDir>
+      <ContainerDir>/app/config</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment>
+    <Variable>
+      <Value>ticketz</Value>
+      <Name>POSTGRES_USER</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>ticketz</Value>
+      <Name>POSTGRES_DB</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>POSTGRES_PASSWORD</Name>
+      <Mode>password</Mode>
+    </Variable>
+    <Variable>
+      <Value>UTC</Value>
+      <Name>TZ</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>PGRST_JWT_SECRET</Name>
+      <Mode>password</Mode>
+    </Variable>
+    <Variable>
+      <Value>http://localhost:3001</Value>
+      <Name>PGRST_JWT_AUD</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>http://localhost:3001</Value>
+      <Name>PGRST_CORS_ALLOW_ORIGIN</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>PGADMIN_EMAIL</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>PGADMIN_PASSWORD</Name>
+      <Mode>password</Mode>
+    </Variable>
+  </Environment>
+  <Labels/>
+  <Config Name="PostgreSQL User" Target="POSTGRES_USER" Default="ticketz" Mode="" Description="Usuario de PostgreSQL"/>
+  <Config Name="PostgreSQL Database" Target="POSTGRES_DB" Default="ticketz" Mode="" Description="Nombre de la base de datos"/>
+  <Config Name="PostgreSQL Password" Target="POSTGRES_PASSWORD" Default="" Mode="password" Description="Contraseña de PostgreSQL"/>
+  <Config Name="Time Zone" Target="TZ" Default="UTC" Mode="" Description="Zona horaria"/>
+  <Config Name="JWT Secret" Target="PGRST_JWT_SECRET" Default="" Mode="password" Description="Secreto para JWT"/>
+  <Config Name="JWT Audience" Target="PGRST_JWT_AUD" Default="http://localhost:3001" Mode="" Description="Dominio de la API"/>
+  <Config Name="CORS Origins" Target="PGRST_CORS_ALLOW_ORIGIN" Default="http://localhost:3001" Mode="" Description="Dominios permitidos para CORS"/>
+  <Config Name="pgAdmin Email" Target="PGADMIN_EMAIL" Default="" Mode="" Description="Email para pgAdmin"/>
+  <Config Name="pgAdmin Password" Target="PGADMIN_PASSWORD" Default="" Mode="password" Description="Contraseña para pgAdmin"/>
+</Container> 

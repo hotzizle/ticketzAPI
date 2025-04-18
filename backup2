@@ -1,0 +1,4857 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 16.8
+-- Dumped by pg_dump version 16.6
+
+-- Started on 2025-04-17 10:20:53 UTC
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- TOC entry 3 (class 3079 OID 17138)
+-- Name: unaccent; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public;
+
+
+--
+-- TOC entry 3940 (class 0 OID 0)
+-- Dependencies: 3
+-- Name: EXTENSION unaccent; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION unaccent IS 'text search dictionary that removes accents';
+
+
+--
+-- TOC entry 2 (class 3079 OID 16390)
+-- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
+
+
+--
+-- TOC entry 3941 (class 0 OID 0)
+-- Dependencies: 2
+-- Name: EXTENSION "uuid-ossp"; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
+
+
+--
+-- TOC entry 319 (class 1255 OID 17224)
+-- Name: buscar_en_esquema(text, text); Type: FUNCTION; Schema: public; Owner: ticketz
+--
+
+CREATE FUNCTION public.buscar_en_esquema(esquema_nombre text, valor_buscado text) RETURNS TABLE(tabla text, columna text, valor_encontrado text)
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    nombre_tabla TEXT;
+    nombre_columna TEXT;
+    tipo_dato TEXT;
+    consulta TEXT;
+    encontrado BOOLEAN;
+BEGIN
+    FOR nombre_tabla IN
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = esquema_nombre
+          AND table_type = 'BASE TABLE'
+    LOOP
+        FOR nombre_columna, tipo_dato IN
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_schema = esquema_nombre
+              AND table_name = nombre_tabla
+        LOOP
+            -- Construir la consulta para buscar el valor (convirtiendo a TEXT para la comparación)
+            consulta := format('SELECT EXISTS (SELECT 1 FROM %I.%I WHERE CAST(%I AS TEXT) LIKE %L)',
+                               esquema_nombre, nombre_tabla, nombre_columna, '%' || valor_buscado || '%');
+
+            -- Ejecutar la consulta
+            EXECUTE consulta INTO encontrado;
+
+            -- Si se encuentra el valor, devolver la información
+            IF encontrado THEN
+                RETURN QUERY SELECT nombre_tabla, nombre_columna, valor_buscado;
+            END IF;
+        END LOOP;
+    END LOOP;
+    RETURN;
+END;
+$$;
+
+
+ALTER FUNCTION public.buscar_en_esquema(esquema_nombre text, valor_buscado text) OWNER TO ticketz;
+
+--
+-- TOC entry 311 (class 1255 OID 17203)
+-- Name: login(text, text); Type: FUNCTION; Schema: public; Owner: ticketz
+--
+
+CREATE FUNCTION public.login(email text, password text) RETURNS json
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  _role name;
+  result json;
+BEGIN
+  IF email = 'admin@ticketz.host' AND password = 'ticketz' THEN
+    _role := 'authenticated';
+    
+    result := json_build_object(
+      'role', _role,
+      'token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYXV0aGVudGljYXRlZCIsImF1ZCI6IndzYXBpLnNvbW9zbGFjb211bmlkYWQuY29tIiwiZXhwIjoxNzM5Njk2MDAwfQ.4bad933cb91663ef24e2a8422342a47dc665531906bfaa35b44a0bd92260935059217098331e32b1489ae0b013360e2ae0100346c0aa67946c3b8057ad4d3bc7'
+    );
+    
+    RETURN result;
+  ELSE
+    RAISE EXCEPTION 'Invalid credentials';
+  END IF;
+END;
+$$;
+
+
+ALTER FUNCTION public.login(email text, password text) OWNER TO ticketz;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- TOC entry 275 (class 1259 OID 16941)
+-- Name: Announcements; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Announcements" (
+    id integer NOT NULL,
+    priority integer,
+    title character varying(255) NOT NULL,
+    text text NOT NULL,
+    "mediaPath" text,
+    "mediaName" text,
+    "companyId" integer NOT NULL,
+    status boolean,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."Announcements" OWNER TO ticketz;
+
+--
+-- TOC entry 274 (class 1259 OID 16940)
+-- Name: Announcements_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Announcements_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Announcements_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3957 (class 0 OID 0)
+-- Dependencies: 274
+-- Name: Announcements_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Announcements_id_seq" OWNED BY public."Announcements".id;
+
+
+--
+-- TOC entry 262 (class 1259 OID 16816)
+-- Name: Baileys; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Baileys" (
+    id integer NOT NULL,
+    "whatsappId" integer NOT NULL,
+    contacts text,
+    chats text,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."Baileys" OWNER TO ticketz;
+
+--
+-- TOC entry 288 (class 1259 OID 17097)
+-- Name: BaileysKeys; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."BaileysKeys" (
+    "whatsappId" integer NOT NULL,
+    type character varying(255) NOT NULL,
+    key character varying(255) NOT NULL,
+    value text NOT NULL
+);
+
+
+ALTER TABLE public."BaileysKeys" OWNER TO ticketz;
+
+--
+-- TOC entry 261 (class 1259 OID 16815)
+-- Name: Baileys_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Baileys_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Baileys_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3961 (class 0 OID 0)
+-- Dependencies: 261
+-- Name: Baileys_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Baileys_id_seq" OWNED BY public."Baileys".id;
+
+
+--
+-- TOC entry 270 (class 1259 OID 16892)
+-- Name: CampaignSettings; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."CampaignSettings" (
+    id integer NOT NULL,
+    key character varying(255) NOT NULL,
+    value text,
+    "companyId" integer,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."CampaignSettings" OWNER TO ticketz;
+
+--
+-- TOC entry 269 (class 1259 OID 16891)
+-- Name: CampaignSettings_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."CampaignSettings_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."CampaignSettings_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3964 (class 0 OID 0)
+-- Dependencies: 269
+-- Name: CampaignSettings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."CampaignSettings_id_seq" OWNED BY public."CampaignSettings".id;
+
+
+--
+-- TOC entry 273 (class 1259 OID 16913)
+-- Name: CampaignShipping; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."CampaignShipping" (
+    id integer NOT NULL,
+    "jobId" character varying(255),
+    number character varying(255) NOT NULL,
+    message text NOT NULL,
+    "confirmationMessage" text,
+    confirmation boolean,
+    "contactId" integer,
+    "campaignId" integer NOT NULL,
+    "confirmationRequestedAt" timestamp with time zone,
+    "confirmedAt" timestamp with time zone,
+    "deliveredAt" timestamp with time zone,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."CampaignShipping" OWNER TO ticketz;
+
+--
+-- TOC entry 272 (class 1259 OID 16912)
+-- Name: CampaignShipping_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."CampaignShipping_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."CampaignShipping_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3967 (class 0 OID 0)
+-- Dependencies: 272
+-- Name: CampaignShipping_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."CampaignShipping_id_seq" OWNED BY public."CampaignShipping".id;
+
+
+--
+-- TOC entry 268 (class 1259 OID 16857)
+-- Name: Campaigns; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Campaigns" (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    message1 text DEFAULT ''::text,
+    message2 text DEFAULT ''::text,
+    message3 text DEFAULT ''::text,
+    message4 text DEFAULT ''::text,
+    message5 text DEFAULT ''::text,
+    "confirmationMessage1" text DEFAULT ''::text,
+    "confirmationMessage2" text DEFAULT ''::text,
+    "confirmationMessage3" text DEFAULT ''::text,
+    "confirmationMessage4" text DEFAULT ''::text,
+    "confirmationMessage5" text DEFAULT ''::text,
+    status character varying(255),
+    confirmation boolean DEFAULT false,
+    "mediaPath" text,
+    "mediaName" text,
+    "companyId" integer NOT NULL,
+    "contactListId" integer,
+    "whatsappId" integer,
+    "scheduledAt" timestamp with time zone,
+    "completedAt" timestamp with time zone,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."Campaigns" OWNER TO ticketz;
+
+--
+-- TOC entry 267 (class 1259 OID 16856)
+-- Name: Campaigns_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Campaigns_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Campaigns_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3970 (class 0 OID 0)
+-- Dependencies: 267
+-- Name: Campaigns_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Campaigns_id_seq" OWNED BY public."Campaigns".id;
+
+
+--
+-- TOC entry 281 (class 1259 OID 16994)
+-- Name: ChatMessages; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."ChatMessages" (
+    id integer NOT NULL,
+    "chatId" integer NOT NULL,
+    "senderId" integer NOT NULL,
+    message text DEFAULT ''::text,
+    "mediaPath" text,
+    "mediaName" text,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    "mediaType" text
+);
+
+
+ALTER TABLE public."ChatMessages" OWNER TO ticketz;
+
+--
+-- TOC entry 280 (class 1259 OID 16993)
+-- Name: ChatMessages_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."ChatMessages_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."ChatMessages_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3973 (class 0 OID 0)
+-- Dependencies: 280
+-- Name: ChatMessages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."ChatMessages_id_seq" OWNED BY public."ChatMessages".id;
+
+
+--
+-- TOC entry 279 (class 1259 OID 16976)
+-- Name: ChatUsers; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."ChatUsers" (
+    id integer NOT NULL,
+    "chatId" integer NOT NULL,
+    "userId" integer NOT NULL,
+    unreads integer DEFAULT 0,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."ChatUsers" OWNER TO ticketz;
+
+--
+-- TOC entry 278 (class 1259 OID 16975)
+-- Name: ChatUsers_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."ChatUsers_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."ChatUsers_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3976 (class 0 OID 0)
+-- Dependencies: 278
+-- Name: ChatUsers_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."ChatUsers_id_seq" OWNED BY public."ChatUsers".id;
+
+
+--
+-- TOC entry 277 (class 1259 OID 16955)
+-- Name: Chats; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Chats" (
+    id integer NOT NULL,
+    title text DEFAULT ''::text,
+    uuid character varying(255) DEFAULT ''::character varying,
+    "ownerId" integer NOT NULL,
+    "lastMessage" text,
+    "companyId" integer NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."Chats" OWNER TO ticketz;
+
+--
+-- TOC entry 276 (class 1259 OID 16954)
+-- Name: Chats_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Chats_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Chats_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3979 (class 0 OID 0)
+-- Dependencies: 276
+-- Name: Chats_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Chats_id_seq" OWNED BY public."Chats".id;
+
+
+--
+-- TOC entry 241 (class 1259 OID 16550)
+-- Name: Companies; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Companies" (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    phone character varying(255),
+    email character varying(255),
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    "planId" integer,
+    status boolean DEFAULT true,
+    schedules jsonb DEFAULT '[]'::jsonb,
+    "dueDate" timestamp with time zone,
+    recurrence character varying(255) DEFAULT ''::character varying
+);
+
+
+ALTER TABLE public."Companies" OWNER TO ticketz;
+
+--
+-- TOC entry 240 (class 1259 OID 16549)
+-- Name: Companies_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Companies_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Companies_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3982 (class 0 OID 0)
+-- Dependencies: 240
+-- Name: Companies_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Companies_id_seq" OWNED BY public."Companies".id;
+
+
+--
+-- TOC entry 234 (class 1259 OID 16470)
+-- Name: ContactCustomFields; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."ContactCustomFields" (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    value character varying(255) NOT NULL,
+    "contactId" integer NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."ContactCustomFields" OWNER TO ticketz;
+
+--
+-- TOC entry 233 (class 1259 OID 16469)
+-- Name: ContactCustomFields_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."ContactCustomFields_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."ContactCustomFields_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3985 (class 0 OID 0)
+-- Dependencies: 233
+-- Name: ContactCustomFields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."ContactCustomFields_id_seq" OWNED BY public."ContactCustomFields".id;
+
+
+--
+-- TOC entry 266 (class 1259 OID 16837)
+-- Name: ContactListItems; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."ContactListItems" (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    number character varying(255) NOT NULL,
+    email character varying(255),
+    "contactListId" integer NOT NULL,
+    "isWhatsappValid" boolean DEFAULT false,
+    "companyId" integer,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."ContactListItems" OWNER TO ticketz;
+
+--
+-- TOC entry 265 (class 1259 OID 16836)
+-- Name: ContactListItems_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."ContactListItems_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."ContactListItems_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3988 (class 0 OID 0)
+-- Dependencies: 265
+-- Name: ContactListItems_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."ContactListItems_id_seq" OWNED BY public."ContactListItems".id;
+
+
+--
+-- TOC entry 264 (class 1259 OID 16825)
+-- Name: ContactLists; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."ContactLists" (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    "companyId" integer,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."ContactLists" OWNER TO ticketz;
+
+--
+-- TOC entry 263 (class 1259 OID 16824)
+-- Name: ContactLists_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."ContactLists_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."ContactLists_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3991 (class 0 OID 0)
+-- Dependencies: 263
+-- Name: ContactLists_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."ContactLists_id_seq" OWNED BY public."ContactLists".id;
+
+
+--
+-- TOC entry 227 (class 1259 OID 16413)
+-- Name: Contacts; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Contacts" (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    number character varying(255) NOT NULL,
+    "profilePicUrl" character varying(255),
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    email character varying(255) DEFAULT ''::character varying NOT NULL,
+    "isGroup" boolean DEFAULT false NOT NULL,
+    "companyId" integer,
+    channel text DEFAULT 'whatsapp'::text,
+    "disableBot" boolean DEFAULT false,
+    presence character varying(255) DEFAULT 'available'::character varying
+);
+
+
+ALTER TABLE public."Contacts" OWNER TO ticketz;
+
+--
+-- TOC entry 226 (class 1259 OID 16412)
+-- Name: Contacts_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Contacts_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Contacts_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3994 (class 0 OID 0)
+-- Dependencies: 226
+-- Name: Contacts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Contacts_id_seq" OWNED BY public."Contacts".id;
+
+
+--
+-- TOC entry 249 (class 1259 OID 16652)
+-- Name: Helps; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Helps" (
+    id integer NOT NULL,
+    title character varying(255) NOT NULL,
+    description text,
+    video character varying(255),
+    link text,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."Helps" OWNER TO ticketz;
+
+--
+-- TOC entry 248 (class 1259 OID 16651)
+-- Name: Helps_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Helps_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Helps_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 3997 (class 0 OID 0)
+-- Dependencies: 248
+-- Name: Helps_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Helps_id_seq" OWNED BY public."Helps".id;
+
+
+--
+-- TOC entry 285 (class 1259 OID 17035)
+-- Name: Invoices; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Invoices" (
+    id integer NOT NULL,
+    detail character varying(255),
+    status character varying(255),
+    value double precision,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    "dueDate" character varying(255),
+    "companyId" integer,
+    "txId" character varying(255),
+    "payGw" character varying(255),
+    "payGwData" text
+);
+
+
+ALTER TABLE public."Invoices" OWNER TO ticketz;
+
+--
+-- TOC entry 284 (class 1259 OID 17034)
+-- Name: Invoices_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Invoices_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Invoices_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4000 (class 0 OID 0)
+-- Dependencies: 284
+-- Name: Invoices_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Invoices_id_seq" OWNED BY public."Invoices".id;
+
+
+--
+-- TOC entry 230 (class 1259 OID 16441)
+-- Name: Messages; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Messages" (
+    id character varying(255) NOT NULL,
+    body text NOT NULL,
+    ack integer DEFAULT 0 NOT NULL,
+    read boolean DEFAULT false NOT NULL,
+    "mediaType" character varying(255),
+    "mediaUrl" character varying(255),
+    "ticketId" integer NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    "fromMe" boolean DEFAULT false NOT NULL,
+    "isDeleted" boolean DEFAULT false NOT NULL,
+    "contactId" integer,
+    "quotedMsgId" character varying(255),
+    "companyId" integer,
+    "remoteJid" text,
+    "dataJson" text,
+    participant text,
+    "queueId" integer,
+    channel text DEFAULT 'whatsapp'::text,
+    "isEdited" boolean DEFAULT false NOT NULL,
+    "thumbnailUrl" character varying(255)
+);
+
+
+ALTER TABLE public."Messages" OWNER TO ticketz;
+
+--
+-- TOC entry 287 (class 1259 OID 17065)
+-- Name: OldMessages; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."OldMessages" (
+    id integer NOT NULL,
+    "messageId" character varying(255) NOT NULL,
+    body text NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    "ticketId" integer
+);
+
+
+ALTER TABLE public."OldMessages" OWNER TO ticketz;
+
+--
+-- TOC entry 286 (class 1259 OID 17064)
+-- Name: OldMessages_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."OldMessages_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."OldMessages_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4004 (class 0 OID 0)
+-- Dependencies: 286
+-- Name: OldMessages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."OldMessages_id_seq" OWNED BY public."OldMessages".id;
+
+
+--
+-- TOC entry 243 (class 1259 OID 16596)
+-- Name: Plans; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Plans" (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    users integer DEFAULT 0,
+    connections integer DEFAULT 0,
+    queues integer DEFAULT 0,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    value double precision,
+    "isPublic" boolean DEFAULT true NOT NULL
+);
+
+
+ALTER TABLE public."Plans" OWNER TO ticketz;
+
+--
+-- TOC entry 242 (class 1259 OID 16595)
+-- Name: Plans_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Plans_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Plans_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4007 (class 0 OID 0)
+-- Dependencies: 242
+-- Name: Plans_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Plans_id_seq" OWNED BY public."Plans".id;
+
+
+--
+-- TOC entry 255 (class 1259 OID 16729)
+-- Name: QueueOptions; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."QueueOptions" (
+    id integer NOT NULL,
+    title character varying(255) NOT NULL,
+    message text,
+    option text,
+    "queueId" integer,
+    "parentId" integer,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    "mediaName" text DEFAULT ''::text,
+    "mediaPath" text DEFAULT ''::text,
+    "forwardQueueId" integer,
+    "exitChatbot" boolean DEFAULT false
+);
+
+
+ALTER TABLE public."QueueOptions" OWNER TO ticketz;
+
+--
+-- TOC entry 254 (class 1259 OID 16728)
+-- Name: QueueOptions_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."QueueOptions_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."QueueOptions_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4010 (class 0 OID 0)
+-- Dependencies: 254
+-- Name: QueueOptions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."QueueOptions_id_seq" OWNED BY public."QueueOptions".id;
+
+
+--
+-- TOC entry 237 (class 1259 OID 16522)
+-- Name: Queues; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Queues" (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    color character varying(255) NOT NULL,
+    "greetingMessage" text,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    "companyId" integer,
+    schedules jsonb DEFAULT '[]'::jsonb,
+    "outOfHoursMessage" text,
+    "mediaName" text DEFAULT ''::text,
+    "mediaPath" text DEFAULT ''::text
+);
+
+
+ALTER TABLE public."Queues" OWNER TO ticketz;
+
+--
+-- TOC entry 236 (class 1259 OID 16521)
+-- Name: Queues_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Queues_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Queues_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4013 (class 0 OID 0)
+-- Dependencies: 236
+-- Name: Queues_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Queues_id_seq" OWNED BY public."Queues".id;
+
+
+--
+-- TOC entry 247 (class 1259 OID 16637)
+-- Name: QuickMessages; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."QuickMessages" (
+    id integer NOT NULL,
+    shortcode character varying(255) NOT NULL,
+    message text,
+    "companyId" integer,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    "userId" integer
+);
+
+
+ALTER TABLE public."QuickMessages" OWNER TO ticketz;
+
+--
+-- TOC entry 246 (class 1259 OID 16636)
+-- Name: QuickMessages_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."QuickMessages_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."QuickMessages_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4016 (class 0 OID 0)
+-- Dependencies: 246
+-- Name: QuickMessages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."QuickMessages_id_seq" OWNED BY public."QuickMessages".id;
+
+
+--
+-- TOC entry 257 (class 1259 OID 16754)
+-- Name: Schedules; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Schedules" (
+    id integer NOT NULL,
+    body text NOT NULL,
+    "sendAt" timestamp with time zone,
+    "sentAt" timestamp with time zone,
+    "contactId" integer,
+    "ticketId" integer,
+    "userId" integer,
+    "companyId" integer,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    status character varying(255),
+    "saveMessage" boolean DEFAULT false NOT NULL
+);
+
+
+ALTER TABLE public."Schedules" OWNER TO ticketz;
+
+--
+-- TOC entry 256 (class 1259 OID 16753)
+-- Name: Schedules_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Schedules_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Schedules_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4019 (class 0 OID 0)
+-- Dependencies: 256
+-- Name: Schedules_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Schedules_id_seq" OWNED BY public."Schedules".id;
+
+
+--
+-- TOC entry 290 (class 1259 OID 17170)
+-- Name: SequelizeData; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."SequelizeData" (
+    name character varying(255) NOT NULL
+);
+
+
+ALTER TABLE public."SequelizeData" OWNER TO ticketz;
+
+--
+-- TOC entry 223 (class 1259 OID 16385)
+-- Name: SequelizeMeta; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."SequelizeMeta" (
+    name character varying(255) NOT NULL
+);
+
+
+ALTER TABLE public."SequelizeMeta" OWNER TO ticketz;
+
+--
+-- TOC entry 235 (class 1259 OID 16486)
+-- Name: Settings; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Settings" (
+    key character varying(255) NOT NULL,
+    value text NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    "companyId" integer,
+    id integer NOT NULL
+);
+
+
+ALTER TABLE public."Settings" OWNER TO ticketz;
+
+--
+-- TOC entry 271 (class 1259 OID 16905)
+-- Name: Settings_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Settings_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Settings_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4024 (class 0 OID 0)
+-- Dependencies: 271
+-- Name: Settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Settings_id_seq" OWNED BY public."Settings".id;
+
+
+--
+-- TOC entry 283 (class 1259 OID 17020)
+-- Name: Subscriptions; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Subscriptions" (
+    id integer NOT NULL,
+    "isActive" boolean DEFAULT false,
+    "expiresAt" timestamp with time zone NOT NULL,
+    "userPriceCents" integer,
+    "whatsPriceCents" integer,
+    "lastInvoiceUrl" character varying(255),
+    "lastPlanChange" timestamp with time zone,
+    "companyId" integer,
+    "providerSubscriptionId" character varying(255) NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."Subscriptions" OWNER TO ticketz;
+
+--
+-- TOC entry 282 (class 1259 OID 17019)
+-- Name: Subscriptions_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Subscriptions_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Subscriptions_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4027 (class 0 OID 0)
+-- Dependencies: 282
+-- Name: Subscriptions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Subscriptions_id_seq" OWNED BY public."Subscriptions".id;
+
+
+--
+-- TOC entry 259 (class 1259 OID 16788)
+-- Name: Tags; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Tags" (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    color character varying(255),
+    "companyId" integer NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    kanban integer
+);
+
+
+ALTER TABLE public."Tags" OWNER TO ticketz;
+
+--
+-- TOC entry 258 (class 1259 OID 16787)
+-- Name: Tags_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Tags_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Tags_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4030 (class 0 OID 0)
+-- Dependencies: 258
+-- Name: Tags_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Tags_id_seq" OWNED BY public."Tags".id;
+
+
+--
+-- TOC entry 245 (class 1259 OID 16615)
+-- Name: TicketNotes; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."TicketNotes" (
+    id integer NOT NULL,
+    note character varying(255) NOT NULL,
+    "userId" integer,
+    "contactId" integer NOT NULL,
+    "ticketId" integer,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."TicketNotes" OWNER TO ticketz;
+
+--
+-- TOC entry 244 (class 1259 OID 16614)
+-- Name: TicketNotes_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."TicketNotes_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."TicketNotes_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4033 (class 0 OID 0)
+-- Dependencies: 244
+-- Name: TicketNotes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."TicketNotes_id_seq" OWNED BY public."TicketNotes".id;
+
+
+--
+-- TOC entry 260 (class 1259 OID 16801)
+-- Name: TicketTags; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."TicketTags" (
+    "ticketId" integer NOT NULL,
+    "tagId" integer NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."TicketTags" OWNER TO ticketz;
+
+--
+-- TOC entry 251 (class 1259 OID 16663)
+-- Name: TicketTraking; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."TicketTraking" (
+    id integer NOT NULL,
+    "ticketId" integer,
+    "companyId" integer,
+    "whatsappId" integer,
+    "userId" integer,
+    "createdAt" timestamp with time zone,
+    "updatedAt" timestamp with time zone,
+    "queuedAt" timestamp with time zone,
+    "startedAt" timestamp with time zone,
+    "finishedAt" timestamp with time zone,
+    "ratingAt" timestamp with time zone,
+    rated boolean DEFAULT false
+);
+
+
+ALTER TABLE public."TicketTraking" OWNER TO ticketz;
+
+--
+-- TOC entry 250 (class 1259 OID 16662)
+-- Name: TicketTraking_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."TicketTraking_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."TicketTraking_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4037 (class 0 OID 0)
+-- Dependencies: 250
+-- Name: TicketTraking_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."TicketTraking_id_seq" OWNED BY public."TicketTraking".id;
+
+
+--
+-- TOC entry 229 (class 1259 OID 16422)
+-- Name: Tickets; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Tickets" (
+    id integer NOT NULL,
+    status character varying(255) DEFAULT 'pending'::character varying NOT NULL,
+    "lastMessage" text DEFAULT ''::text,
+    "contactId" integer,
+    "userId" integer,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    "whatsappId" integer,
+    "isGroup" boolean DEFAULT false NOT NULL,
+    "unreadMessages" integer,
+    "queueId" integer,
+    "companyId" integer,
+    uuid uuid DEFAULT public.uuid_generate_v4(),
+    chatbot boolean DEFAULT false,
+    "queueOptionId" integer,
+    channel text DEFAULT 'whatsapp'::text
+);
+
+
+ALTER TABLE public."Tickets" OWNER TO ticketz;
+
+--
+-- TOC entry 228 (class 1259 OID 16421)
+-- Name: Tickets_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Tickets_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Tickets_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4040 (class 0 OID 0)
+-- Dependencies: 228
+-- Name: Tickets_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Tickets_id_seq" OWNED BY public."Tickets".id;
+
+
+--
+-- TOC entry 239 (class 1259 OID 16544)
+-- Name: UserQueues; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."UserQueues" (
+    "userId" integer NOT NULL,
+    "queueId" integer NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."UserQueues" OWNER TO ticketz;
+
+--
+-- TOC entry 253 (class 1259 OID 16691)
+-- Name: UserRatings; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."UserRatings" (
+    id integer NOT NULL,
+    "ticketId" integer,
+    "companyId" integer,
+    "userId" integer,
+    rate integer DEFAULT 0,
+    "createdAt" timestamp with time zone,
+    "updatedAt" timestamp with time zone
+);
+
+
+ALTER TABLE public."UserRatings" OWNER TO ticketz;
+
+--
+-- TOC entry 252 (class 1259 OID 16690)
+-- Name: UserRatings_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."UserRatings_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."UserRatings_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4044 (class 0 OID 0)
+-- Dependencies: 252
+-- Name: UserRatings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."UserRatings_id_seq" OWNED BY public."UserRatings".id;
+
+
+--
+-- TOC entry 289 (class 1259 OID 17109)
+-- Name: UserSocketSessions; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."UserSocketSessions" (
+    id character varying(255) NOT NULL,
+    "userId" integer,
+    active boolean DEFAULT true NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."UserSocketSessions" OWNER TO ticketz;
+
+--
+-- TOC entry 225 (class 1259 OID 16402)
+-- Name: Users; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Users" (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    email character varying(255) NOT NULL,
+    "passwordHash" character varying(255) NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    profile character varying(255) DEFAULT 'admin'::character varying NOT NULL,
+    "tokenVersion" integer DEFAULT 0 NOT NULL,
+    "companyId" integer,
+    super boolean DEFAULT false,
+    online boolean DEFAULT false
+);
+
+
+ALTER TABLE public."Users" OWNER TO ticketz;
+
+--
+-- TOC entry 224 (class 1259 OID 16401)
+-- Name: Users_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Users_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Users_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4048 (class 0 OID 0)
+-- Dependencies: 224
+-- Name: Users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Users_id_seq" OWNED BY public."Users".id;
+
+
+--
+-- TOC entry 238 (class 1259 OID 16539)
+-- Name: WhatsappQueues; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."WhatsappQueues" (
+    "whatsappId" integer NOT NULL,
+    "queueId" integer NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public."WhatsappQueues" OWNER TO ticketz;
+
+--
+-- TOC entry 232 (class 1259 OID 16461)
+-- Name: Whatsapps; Type: TABLE; Schema: public; Owner: ticketz
+--
+
+CREATE TABLE public."Whatsapps" (
+    id integer NOT NULL,
+    session text,
+    qrcode text,
+    status character varying(255),
+    battery character varying(255),
+    plugged boolean,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL,
+    name character varying(255) NOT NULL,
+    "isDefault" boolean DEFAULT false NOT NULL,
+    retries integer DEFAULT 0 NOT NULL,
+    "greetingMessage" text,
+    "companyId" integer,
+    "complationMessage" text,
+    "outOfHoursMessage" text,
+    "ratingMessage" text,
+    token text,
+    "farewellMessage" text,
+    provider text DEFAULT 'stable'::text,
+    channel character varying(255) DEFAULT 'whatsapp'::text NOT NULL,
+    "facebookUserToken" text,
+    "tokenMeta" text,
+    "facebookPageUserId" text,
+    "facebookUserId" text,
+    "transferMessage" text
+);
+
+
+ALTER TABLE public."Whatsapps" OWNER TO ticketz;
+
+--
+-- TOC entry 231 (class 1259 OID 16460)
+-- Name: Whatsapps_id_seq; Type: SEQUENCE; Schema: public; Owner: ticketz
+--
+
+CREATE SEQUENCE public."Whatsapps_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."Whatsapps_id_seq" OWNER TO ticketz;
+
+--
+-- TOC entry 4052 (class 0 OID 0)
+-- Dependencies: 231
+-- Name: Whatsapps_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ticketz
+--
+
+ALTER SEQUENCE public."Whatsapps_id_seq" OWNED BY public."Whatsapps".id;
+
+
+--
+-- TOC entry 291 (class 1259 OID 17199)
+-- Name: budibase_contacts; Type: VIEW; Schema: public; Owner: ticketz
+--
+
+CREATE VIEW public.budibase_contacts AS
+ SELECT id,
+    name,
+    number,
+    email,
+    "profilePicUrl",
+    "createdAt",
+    "updatedAt"
+   FROM public."Contacts";
+
+
+ALTER VIEW public.budibase_contacts OWNER TO ticketz;
+
+--
+-- TOC entry 292 (class 1259 OID 17210)
+-- Name: vw_contactos_completos; Type: VIEW; Schema: public; Owner: ticketz
+--
+
+CREATE VIEW public.vw_contactos_completos AS
+ SELECT c.id,
+    c.name,
+    c.number AS whatsapp_number,
+    tk.status AS ticket_status,
+    c."createdAt",
+    c."updatedAt",
+    string_agg(DISTINCT (t.name)::text, ', '::text) AS tags,
+    string_agg(DISTINCT (q.name)::text, ', '::text) AS queues,
+    u.name AS assigned_to,
+        CASE
+            WHEN (EXISTS ( SELECT 1
+               FROM public."Messages" m
+              WHERE ((m."contactId" = c.id) AND (m.read = false)))) THEN 'Tiene mensajes no leídos'::text
+            ELSE 'Sin mensajes no leídos'::text
+        END AS unread_status,
+    ccf.value AS additional_info,
+    tn.note AS notes
+   FROM (((((((public."Contacts" c
+     LEFT JOIN public."TicketTags" tt ON ((c.id = tt."ticketId")))
+     LEFT JOIN public."Tags" t ON ((tt."tagId" = t.id)))
+     LEFT JOIN public."Tickets" tk ON ((c.id = tk."contactId")))
+     LEFT JOIN public."Queues" q ON ((tk."queueId" = q.id)))
+     LEFT JOIN public."Users" u ON ((tk."userId" = u.id)))
+     LEFT JOIN public."ContactCustomFields" ccf ON ((c.id = ccf."contactId")))
+     LEFT JOIN public."TicketNotes" tn ON ((tk.id = tn."ticketId")))
+  GROUP BY c.id, c.name, c.number, tk.status, c."createdAt", c."updatedAt", u.name, ccf.value, tn.note
+  ORDER BY c."updatedAt" DESC;
+
+
+ALTER VIEW public.vw_contactos_completos OWNER TO ticketz;
+
+--
+-- TOC entry 3533 (class 2604 OID 16944)
+-- Name: Announcements id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Announcements" ALTER COLUMN id SET DEFAULT nextval('public."Announcements_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3515 (class 2604 OID 16819)
+-- Name: Baileys id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Baileys" ALTER COLUMN id SET DEFAULT nextval('public."Baileys_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3531 (class 2604 OID 16895)
+-- Name: CampaignSettings id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."CampaignSettings" ALTER COLUMN id SET DEFAULT nextval('public."CampaignSettings_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3532 (class 2604 OID 16916)
+-- Name: CampaignShipping id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."CampaignShipping" ALTER COLUMN id SET DEFAULT nextval('public."CampaignShipping_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3519 (class 2604 OID 16860)
+-- Name: Campaigns id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Campaigns" ALTER COLUMN id SET DEFAULT nextval('public."Campaigns_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3539 (class 2604 OID 16997)
+-- Name: ChatMessages id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ChatMessages" ALTER COLUMN id SET DEFAULT nextval('public."ChatMessages_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3537 (class 2604 OID 16979)
+-- Name: ChatUsers id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ChatUsers" ALTER COLUMN id SET DEFAULT nextval('public."ChatUsers_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3534 (class 2604 OID 16958)
+-- Name: Chats id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Chats" ALTER COLUMN id SET DEFAULT nextval('public."Chats_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3492 (class 2604 OID 16553)
+-- Name: Companies id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Companies" ALTER COLUMN id SET DEFAULT nextval('public."Companies_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3486 (class 2604 OID 16473)
+-- Name: ContactCustomFields id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ContactCustomFields" ALTER COLUMN id SET DEFAULT nextval('public."ContactCustomFields_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3517 (class 2604 OID 16840)
+-- Name: ContactListItems id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ContactListItems" ALTER COLUMN id SET DEFAULT nextval('public."ContactListItems_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3516 (class 2604 OID 16828)
+-- Name: ContactLists id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ContactLists" ALTER COLUMN id SET DEFAULT nextval('public."ContactLists_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3462 (class 2604 OID 16416)
+-- Name: Contacts id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Contacts" ALTER COLUMN id SET DEFAULT nextval('public."Contacts_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3503 (class 2604 OID 16655)
+-- Name: Helps id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Helps" ALTER COLUMN id SET DEFAULT nextval('public."Helps_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3543 (class 2604 OID 17038)
+-- Name: Invoices id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Invoices" ALTER COLUMN id SET DEFAULT nextval('public."Invoices_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3544 (class 2604 OID 17068)
+-- Name: OldMessages id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."OldMessages" ALTER COLUMN id SET DEFAULT nextval('public."OldMessages_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3496 (class 2604 OID 16599)
+-- Name: Plans id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Plans" ALTER COLUMN id SET DEFAULT nextval('public."Plans_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3508 (class 2604 OID 16732)
+-- Name: QueueOptions id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."QueueOptions" ALTER COLUMN id SET DEFAULT nextval('public."QueueOptions_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3488 (class 2604 OID 16525)
+-- Name: Queues id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Queues" ALTER COLUMN id SET DEFAULT nextval('public."Queues_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3502 (class 2604 OID 16640)
+-- Name: QuickMessages id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."QuickMessages" ALTER COLUMN id SET DEFAULT nextval('public."QuickMessages_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3512 (class 2604 OID 16757)
+-- Name: Schedules id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Schedules" ALTER COLUMN id SET DEFAULT nextval('public."Schedules_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3487 (class 2604 OID 16906)
+-- Name: Settings id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Settings" ALTER COLUMN id SET DEFAULT nextval('public."Settings_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3541 (class 2604 OID 17023)
+-- Name: Subscriptions id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Subscriptions" ALTER COLUMN id SET DEFAULT nextval('public."Subscriptions_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3514 (class 2604 OID 16791)
+-- Name: Tags id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Tags" ALTER COLUMN id SET DEFAULT nextval('public."Tags_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3501 (class 2604 OID 16618)
+-- Name: TicketNotes id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketNotes" ALTER COLUMN id SET DEFAULT nextval('public."TicketNotes_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3504 (class 2604 OID 16666)
+-- Name: TicketTraking id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketTraking" ALTER COLUMN id SET DEFAULT nextval('public."TicketTraking_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3468 (class 2604 OID 16425)
+-- Name: Tickets id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Tickets" ALTER COLUMN id SET DEFAULT nextval('public."Tickets_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3506 (class 2604 OID 16694)
+-- Name: UserRatings id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."UserRatings" ALTER COLUMN id SET DEFAULT nextval('public."UserRatings_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3457 (class 2604 OID 16405)
+-- Name: Users id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Users" ALTER COLUMN id SET DEFAULT nextval('public."Users_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3481 (class 2604 OID 16464)
+-- Name: Whatsapps id; Type: DEFAULT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Whatsapps" ALTER COLUMN id SET DEFAULT nextval('public."Whatsapps_id_seq"'::regclass);
+
+
+--
+-- TOC entry 3918 (class 0 OID 16941)
+-- Dependencies: 275
+-- Data for Name: Announcements; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Announcements" (id, priority, title, text, "mediaPath", "mediaName", "companyId", status, "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3905 (class 0 OID 16816)
+-- Dependencies: 262
+-- Data for Name: Baileys; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Baileys" (id, "whatsappId", contacts, chats, "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3931 (class 0 OID 17097)
+-- Dependencies: 288
+-- Data for Name: BaileysKeys; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."BaileysKeys" ("whatsappId", type, key, value) FROM stdin;
+1	pre-key	1	{"private":{"type":"Buffer","data":[200,174,3,34,114,216,162,160,16,137,169,158,230,131,179,214,22,91,135,176,20,235,180,115,198,181,153,202,200,57,160,101]},"public":{"type":"Buffer","data":[232,118,16,246,22,146,148,120,2,39,4,86,78,59,142,123,34,106,27,125,120,113,227,197,189,244,86,115,200,231,16,25]}}
+1	pre-key	3	{"private":{"type":"Buffer","data":[24,253,10,74,133,173,54,179,79,193,25,129,75,63,8,33,209,182,116,216,228,171,19,205,44,35,171,87,165,8,45,89]},"public":{"type":"Buffer","data":[168,212,166,25,77,64,8,70,172,219,115,107,251,92,121,211,206,176,104,242,7,216,237,136,74,136,144,102,98,147,2,1]}}
+1	pre-key	6	{"private":{"type":"Buffer","data":[80,204,58,250,184,45,42,95,136,182,146,72,4,160,119,76,198,171,50,43,204,183,242,32,238,184,26,23,31,16,70,123]},"public":{"type":"Buffer","data":[116,1,55,108,138,73,91,83,190,160,103,64,142,18,181,23,222,249,168,211,85,105,29,40,174,86,54,229,76,3,149,57]}}
+1	pre-key	9	{"private":{"type":"Buffer","data":[88,131,97,10,172,14,43,155,75,180,209,228,254,72,75,1,123,13,151,211,64,184,154,4,104,223,23,109,80,215,129,75]},"public":{"type":"Buffer","data":[88,78,248,246,39,134,209,198,13,204,162,235,175,174,110,106,108,226,30,191,125,4,161,63,135,89,33,117,171,22,199,7]}}
+1	pre-key	11	{"private":{"type":"Buffer","data":[16,145,173,59,206,187,71,152,213,10,127,87,163,124,110,8,65,228,11,118,224,201,165,126,160,180,113,213,116,247,149,92]},"public":{"type":"Buffer","data":[244,55,174,19,22,201,231,132,163,66,251,117,220,73,125,137,5,226,97,213,217,114,20,115,100,101,99,166,71,119,18,76]}}
+1	pre-key	14	{"private":{"type":"Buffer","data":[128,81,74,193,88,243,12,67,248,156,1,194,236,112,158,0,59,70,107,13,236,158,198,104,205,103,59,96,70,238,122,99]},"public":{"type":"Buffer","data":[239,112,147,133,60,162,162,41,173,75,245,22,157,164,72,75,173,244,52,127,191,84,59,134,32,189,141,104,98,122,209,110]}}
+1	pre-key	16	{"private":{"type":"Buffer","data":[72,31,166,245,139,253,81,68,229,41,92,42,11,240,24,189,192,38,103,121,238,49,98,87,189,43,45,33,11,22,121,126]},"public":{"type":"Buffer","data":[35,25,114,213,8,136,229,103,47,32,108,189,12,103,237,172,133,33,240,39,42,14,209,28,15,215,233,62,60,152,210,49]}}
+1	pre-key	19	{"private":{"type":"Buffer","data":[104,0,24,167,155,189,130,218,98,83,121,254,110,31,27,60,216,65,81,39,190,93,247,192,113,153,165,77,240,209,17,124]},"public":{"type":"Buffer","data":[103,231,110,141,139,85,230,228,73,165,146,146,16,98,5,236,34,23,160,225,222,123,80,24,110,33,51,206,3,3,255,83]}}
+1	app-state-sync-key	AAAAABel	{"keyData":"+B2iaMdPb9oV33ejxqEzfM4Vd23eRxwzN3A06MofMxs=","fingerprint":{"rawId":941981783,"currentIndex":1,"deviceIndexes":[0,1]},"timestamp":"0"}
+1	app-state-sync-version	regular_high	{"version":5,"hash":{"type":"Buffer","data":[47,178,101,218,138,134,106,38,81,174,104,217,197,165,107,2,117,126,165,234,12,103,139,108,59,57,138,251,11,50,44,32,6,160,16,24,22,202,139,124,80,208,95,26,100,234,6,154,29,165,13,93,218,224,31,215,213,140,24,15,150,75,113,47,84,22,12,110,215,13,191,213,47,35,168,87,25,175,50,165,74,190,251,236,212,224,28,201,74,40,92,234,105,211,3,20,41,140,132,198,4,28,63,201,60,179,188,31,217,219,67,120,119,143,200,124,155,99,11,110,184,42,63,192,247,111,67,148]},"indexValueMap":{"JIibw1fdvNWDbK5yA2J5u1MMsmE7ed8iLwpFAqgZvNs=":{"valueMac":{"type":"Buffer","data":[118,216,156,157,234,228,83,202,233,173,18,255,70,73,168,98,49,85,225,40,221,251,210,182,246,160,158,98,197,227,90,130]}},"yNgR+uRagloxrtUbSZnxVnaShcTO6GnQwEIUyDtqcPs=":{"valueMac":{"type":"Buffer","data":[152,170,81,3,184,180,118,148,219,100,213,208,36,46,31,130,44,54,185,0,50,88,56,251,153,97,188,75,84,121,9,215]}},"OWaXR8mdbleVoSuo5PfnWpiKWlfPb9lnmILvYnx1+FQ=":{"valueMac":{"type":"Buffer","data":[54,210,16,109,124,168,131,15,51,217,123,204,182,72,125,175,190,228,118,11,85,192,87,236,119,44,241,81,245,113,81,58]}},"DEbYAYt/VcQKN0PxndNLZJMStf8Vx57J7IcaSp6yjLs=":{"valueMac":{"type":"Buffer","data":[54,252,0,125,108,255,182,111,139,4,45,232,246,227,201,20,42,177,111,241,130,230,239,34,51,230,47,75,202,183,53,202]}}}}
+1	pre-key	2	{"private":{"type":"Buffer","data":[128,194,54,218,81,175,1,191,50,132,230,193,247,121,230,49,55,230,219,99,120,104,126,61,228,5,177,202,138,51,225,100]},"public":{"type":"Buffer","data":[51,38,205,248,27,153,12,228,54,158,252,12,127,112,82,10,85,198,36,191,23,65,80,162,12,51,250,58,214,68,200,16]}}
+1	pre-key	13	{"private":{"type":"Buffer","data":[200,214,141,157,10,103,191,88,137,135,145,215,68,222,13,235,36,244,70,8,44,175,68,153,1,18,6,173,70,249,151,74]},"public":{"type":"Buffer","data":[85,11,94,121,125,183,136,218,223,17,108,66,222,226,87,6,147,111,117,118,173,222,55,199,46,36,83,184,241,254,170,89]}}
+1	pre-key	18	{"private":{"type":"Buffer","data":[64,118,131,44,88,211,83,141,170,61,215,36,129,88,170,85,20,36,184,201,120,176,120,235,164,176,67,18,160,168,204,113]},"public":{"type":"Buffer","data":[190,237,66,3,112,68,107,239,174,4,69,118,77,180,208,7,12,104,139,62,119,234,179,135,114,78,62,102,74,73,29,80]}}
+1	pre-key	4	{"private":{"type":"Buffer","data":[240,178,126,114,213,29,116,74,6,238,90,214,162,8,79,219,120,57,63,251,114,215,247,209,161,70,217,60,142,71,192,120]},"public":{"type":"Buffer","data":[223,216,236,243,208,249,148,162,241,45,180,180,189,142,146,176,67,174,158,227,70,91,241,97,207,179,253,212,212,137,35,46]}}
+1	pre-key	5	{"private":{"type":"Buffer","data":[72,24,97,19,176,33,182,115,18,176,24,74,155,228,219,220,124,185,27,93,61,206,232,72,117,143,158,189,21,98,95,65]},"public":{"type":"Buffer","data":[166,38,133,47,76,10,35,37,231,181,233,61,252,122,10,234,154,242,53,150,48,22,94,59,112,97,134,187,58,164,234,98]}}
+1	pre-key	7	{"private":{"type":"Buffer","data":[104,166,5,243,157,125,107,170,98,213,161,152,115,30,55,56,117,46,67,44,23,85,208,217,210,215,109,132,188,235,217,73]},"public":{"type":"Buffer","data":[191,13,202,95,231,228,2,79,160,233,48,121,88,124,255,52,249,174,152,233,102,4,181,193,237,58,253,145,71,47,95,49]}}
+1	pre-key	10	{"private":{"type":"Buffer","data":[96,28,62,239,94,11,98,165,212,178,147,226,216,91,199,93,9,140,190,91,26,234,123,228,136,208,41,202,150,250,231,113]},"public":{"type":"Buffer","data":[105,203,30,125,244,210,172,175,250,189,55,51,245,70,156,209,74,156,138,243,171,172,133,45,30,181,88,207,219,244,122,28]}}
+1	pre-key	12	{"private":{"type":"Buffer","data":[16,243,220,198,94,116,187,178,3,242,11,156,191,92,27,198,107,45,72,136,245,140,6,237,207,149,124,86,19,0,132,98]},"public":{"type":"Buffer","data":[229,0,101,47,129,191,248,113,129,179,108,188,104,89,51,69,82,89,14,124,95,146,134,24,55,97,55,83,197,224,148,4]}}
+1	pre-key	15	{"private":{"type":"Buffer","data":[216,34,215,3,188,66,7,142,163,129,115,14,63,5,218,69,194,197,160,76,120,209,37,221,47,197,209,251,54,88,201,69]},"public":{"type":"Buffer","data":[215,146,178,223,94,48,66,131,229,120,64,206,95,48,4,189,209,50,208,126,39,203,186,131,163,96,160,157,193,148,72,101]}}
+1	pre-key	17	{"private":{"type":"Buffer","data":[184,222,211,38,130,28,195,67,106,214,95,44,125,19,151,4,209,10,108,233,222,165,141,252,242,111,138,218,207,229,63,120]},"public":{"type":"Buffer","data":[98,36,15,2,115,6,141,255,170,78,185,40,185,211,189,129,107,211,221,206,37,202,215,119,72,172,235,177,81,41,73,70]}}
+1	pre-key	20	{"private":{"type":"Buffer","data":[176,208,160,119,165,63,35,46,75,214,76,157,63,156,25,223,225,201,57,135,197,111,241,48,138,177,6,47,231,49,88,97]},"public":{"type":"Buffer","data":[173,191,13,133,249,112,10,209,25,234,211,162,83,23,253,198,139,88,186,98,254,200,138,84,82,49,161,204,133,234,251,58]}}
+1	pre-key	21	{"private":{"type":"Buffer","data":[208,119,70,236,126,0,161,135,153,24,197,156,192,224,130,97,155,188,18,67,142,230,166,54,144,177,106,62,179,217,228,117]},"public":{"type":"Buffer","data":[70,18,150,114,127,119,233,75,10,210,199,16,241,42,142,239,27,78,146,252,0,101,180,174,144,250,20,68,181,26,37,118]}}
+1	pre-key	22	{"private":{"type":"Buffer","data":[176,171,251,198,199,152,254,34,122,217,219,111,236,173,142,238,67,201,136,129,115,75,160,4,153,184,37,33,124,110,111,104]},"public":{"type":"Buffer","data":[206,24,249,10,157,104,149,226,122,210,94,97,97,92,158,250,61,232,209,89,182,67,242,172,222,24,167,34,179,80,214,79]}}
+1	pre-key	24	{"private":{"type":"Buffer","data":[192,207,46,52,216,77,192,127,255,193,96,152,193,80,64,20,169,50,60,169,158,205,224,182,15,155,207,89,44,10,72,126]},"public":{"type":"Buffer","data":[237,5,222,154,228,181,65,213,243,82,17,170,151,21,243,151,98,130,127,188,23,111,29,81,33,82,168,132,134,75,98,106]}}
+1	pre-key	25	{"private":{"type":"Buffer","data":[128,8,245,91,14,117,187,109,205,216,38,89,114,10,2,119,30,78,119,6,221,93,102,153,247,47,47,33,12,202,50,120]},"public":{"type":"Buffer","data":[104,118,61,226,0,111,89,244,87,108,195,39,91,118,59,199,164,218,54,174,80,180,1,39,75,132,205,92,119,160,143,52]}}
+1	pre-key	27	{"private":{"type":"Buffer","data":[232,41,144,19,133,11,195,4,165,178,19,175,201,143,72,127,69,50,222,38,80,255,159,120,251,74,216,142,76,216,91,118]},"public":{"type":"Buffer","data":[168,254,77,0,70,29,25,243,204,228,13,218,84,24,190,213,40,39,193,172,196,109,73,116,254,2,101,217,45,168,45,99]}}
+1	pre-key	28	{"private":{"type":"Buffer","data":[40,153,13,22,210,226,208,63,226,113,30,185,172,2,146,129,79,248,72,119,91,51,145,164,163,231,90,248,60,52,103,69]},"public":{"type":"Buffer","data":[186,91,162,105,160,51,147,202,114,178,203,125,238,135,93,12,103,8,111,118,168,119,12,56,60,136,52,164,159,126,26,44]}}
+1	pre-key	29	{"private":{"type":"Buffer","data":[176,54,40,216,77,18,221,219,106,181,169,139,171,60,202,126,178,134,86,232,147,54,41,13,71,89,181,14,134,200,172,73]},"public":{"type":"Buffer","data":[152,54,27,237,210,77,66,108,143,228,175,9,249,93,169,251,124,20,34,194,64,14,244,191,97,154,51,94,223,153,247,75]}}
+1	pre-key	30	{"private":{"type":"Buffer","data":[136,16,108,75,110,87,58,202,31,238,221,246,89,33,54,202,126,134,178,2,49,150,92,250,186,191,128,192,146,21,126,123]},"public":{"type":"Buffer","data":[233,216,239,216,200,100,223,164,188,251,59,216,24,31,241,25,108,28,94,25,81,249,1,3,236,166,18,74,195,109,185,48]}}
+1	app-state-sync-key	AAAAABek	{"keyData":"6xJjeXsV6arTFAsqd/YwONz8tfK9wT5TYwA2ViBS2EI=","fingerprint":{"rawId":941981782,"currentIndex":1,"deviceIndexes":[0]},"timestamp":"1742938394663"}
+1	app-state-sync-key	AAAAABej	{"keyData":"NvoDrPbSduG/seWUMRBki4Ew8qUzSS+85InbdyHJ4Wc=","fingerprint":{"rawId":941981782,"currentIndex":1,"deviceIndexes":[0,1]},"timestamp":"0"}
+1	app-state-sync-key	AAAAABem	{"keyData":"yVdjYKjhfqg+IwD+NEVk9p7Wba3Huz0f/egNohTReAU=","fingerprint":{"rawId":941981783,"currentIndex":3,"deviceIndexes":[0,2,3]},"timestamp":"0"}
+1	app-state-sync-version	critical_unblock_low	{"version":5,"hash":{"type":"Buffer","data":[116,51,155,18,232,1,55,125,214,164,189,57,125,83,46,128,49,82,154,169,82,58,202,185,176,1,98,213,118,218,22,144,49,149,72,21,178,95,56,226,83,37,97,33,90,85,59,197,214,89,206,233,103,193,53,35,130,225,254,243,130,72,207,191,190,9,239,233,246,120,243,91,104,10,230,205,113,11,54,55,26,200,229,89,229,254,110,43,7,205,15,148,52,252,146,210,31,15,88,87,195,231,48,116,119,51,185,126,11,76,164,111,74,243,97,135,208,166,52,30,24,222,223,54,29,59,216,218]},"indexValueMap":{"c2v56ZlQOSi6VjYmrAcg6LswfLWjQ1Wq/T2R4FZpq2g=":{"valueMac":{"type":"Buffer","data":[152,86,135,171,110,221,15,192,234,123,209,7,110,201,232,52,236,204,255,188,42,1,201,136,131,169,87,147,220,78,243,166]}}}}
+1	app-state-sync-version	regular	{"version":17,"hash":{"type":"Buffer","data":[194,11,72,6,182,47,7,17,192,11,199,157,76,25,172,43,198,12,207,44,114,181,222,154,13,105,148,97,65,139,80,187,31,20,109,211,147,94,0,171,210,99,146,215,235,171,20,69,2,83,219,230,140,255,41,66,77,105,79,143,41,204,87,150,24,254,20,238,76,43,190,175,112,174,212,29,235,236,74,205,101,73,58,116,0,252,171,168,102,26,51,182,211,190,110,198,25,139,41,32,166,205,187,71,53,48,193,222,174,238,83,217,224,229,93,36,105,63,128,138,129,163,241,51,114,71,95,55]},"indexValueMap":{"GHO7jINGHhMYKrpqAQukQL4SPxGhTV3daOyIQ3DqqdM=":{"valueMac":{"type":"Buffer","data":[121,22,67,188,209,85,127,120,230,64,101,233,77,89,7,197,69,144,162,232,27,255,1,190,65,193,155,49,161,113,74,203]}},"G1eMppyACIHfIi//3eDt0vXc+QZVtx4L4+jcV5+P4U0=":{"valueMac":{"type":"Buffer","data":[106,92,117,86,81,38,131,54,231,125,251,10,157,122,91,123,46,207,166,228,210,159,141,107,236,240,73,0,27,120,86,67]}},"KgjQ/QyRDsS4D4P1i9w1gHhRiu3ArZMnedHMBpruSh8=":{"valueMac":{"type":"Buffer","data":[32,22,144,96,101,137,194,166,74,233,238,109,197,217,20,92,76,252,124,251,126,89,52,23,40,166,66,96,165,149,123,99]}},"MpWyskVm+FTPoAGUzp+43piJ4w0SZRLgczpXiClYWvQ=":{"valueMac":{"type":"Buffer","data":[254,213,253,121,158,33,0,242,168,215,224,103,235,148,241,162,183,253,89,38,121,95,111,39,238,62,184,44,150,43,37,221]}},"OovFzBQgzCftprAJner7dYagBvmesJGF79oF7dhCWEY=":{"valueMac":{"type":"Buffer","data":[54,45,198,154,181,85,118,61,173,206,35,189,166,85,131,145,13,118,177,102,243,125,99,222,249,132,205,191,132,180,26,162]}},"S5Uv+V3QINnqWBUPIWlKs7YRd5cab93+NVwBMnjEQ8c=":{"valueMac":{"type":"Buffer","data":[101,88,26,185,186,23,163,223,210,115,212,205,148,85,42,167,17,207,50,171,114,79,196,197,107,66,194,119,111,54,4,24]}},"cyOMWRAfYmwNdvoz8Tb2rEUSLFCtuYEspLW3rDKhMEU=":{"valueMac":{"type":"Buffer","data":[42,181,177,103,92,127,226,21,44,90,194,100,56,133,116,2,97,155,133,192,163,112,99,44,21,40,172,94,242,150,125,28]}},"fpvKM3z4Uq3ACMdnRt6110czddED26bz82CL3/WrlYE=":{"valueMac":{"type":"Buffer","data":[12,43,38,56,1,195,132,250,149,218,26,183,46,11,188,51,37,231,96,94,43,190,175,32,156,33,98,63,209,153,110,33]}},"pYClc7kz0jl3XVojYB/1t/ENRFiRh6UB1hU9eAfDMOs=":{"valueMac":{"type":"Buffer","data":[127,62,188,219,213,81,89,128,77,74,183,85,8,61,67,102,234,103,19,102,205,137,130,151,126,8,1,179,65,129,239,50]}},"pjTYWTvrlCwtsgiL0gDA/LDqnfPfep2/se1EZb6u3/Y=":{"valueMac":{"type":"Buffer","data":[170,252,166,30,120,239,40,77,228,159,142,201,143,77,239,149,58,80,2,229,213,188,27,81,61,183,230,131,164,33,42,228]}},"3mGNGcj6K2qXfbg22gyX4QMHmJ3hzJQM1O+NNKV1/wE=":{"valueMac":{"type":"Buffer","data":[79,15,156,240,83,8,102,60,146,37,41,7,53,137,22,7,133,192,19,186,236,90,152,178,150,105,114,67,107,33,254,203]}},"/lTBsawtqWiF3r2H+De5CmK8xtc4pS1DTpqkbGH6tTA=":{"valueMac":{"type":"Buffer","data":[150,147,200,239,1,30,198,155,95,230,156,207,6,137,79,148,9,70,66,179,40,221,219,235,189,149,104,10,39,228,49,117]}},"o+lEEVu169QIuLxkR2cKkjs8bv3cwwxvgSnn4JV02ro=":{"valueMac":{"type":"Buffer","data":[117,230,229,66,42,171,140,21,102,42,21,164,56,15,162,57,205,187,177,72,121,80,66,206,186,57,56,72,76,205,9,225]}},"87nb1atTHCIYx9I/e5mSfdQzNErsYwa97LiXOrBwDl4=":{"valueMac":{"type":"Buffer","data":[28,31,178,130,242,171,74,53,165,112,72,181,213,147,74,227,217,37,200,147,140,196,90,171,80,84,132,237,14,137,169,229]}},"ujgI72UgmovJ5kTMCHtup2/6UuFrjH3pI3JaFT2DDns=":{"valueMac":{"type":"Buffer","data":[134,22,128,134,47,184,161,228,195,246,145,110,237,182,42,185,85,79,211,206,99,252,79,150,88,61,195,26,160,14,16,36]}},"0kMr0wjBXD7dIaMqRlThx3CVwe+71KyBsVGk41LA9d8=":{"valueMac":{"type":"Buffer","data":[48,111,115,239,119,108,54,165,6,1,213,45,236,85,191,21,173,160,25,173,162,223,92,159,88,245,166,92,129,137,114,8]}},"Q2fSlUHw7kPJ6n3Xlt6jHjVs38fv3u8iQNtgbN+4Lg8=":{"valueMac":{"type":"Buffer","data":[178,129,246,63,193,125,156,210,93,147,98,250,6,236,76,248,13,221,14,138,47,236,28,209,223,2,186,64,181,113,151,152]}},"6i2+RQ/rrkRXapYv7uo3f4y0Es4HZu2yOFhwZJnoXpQ=":{"valueMac":{"type":"Buffer","data":[201,103,192,35,243,59,222,118,183,74,79,50,33,85,62,31,96,240,24,64,18,29,17,101,92,43,194,187,142,42,62,234]}},"Q+MC2ttADOKewkGu0p8daH79JEuY5oGz82tX5Wena/k=":{"valueMac":{"type":"Buffer","data":[29,34,160,104,112,30,66,97,217,175,5,18,151,24,66,137,178,220,202,74,190,91,119,9,67,207,195,238,14,211,161,63]}}}}
+1	app-state-sync-key	AAAAABen	{"keyData":"eh2bGWdB3a/yp6yoiEhjJ8IWFDMUrcU/e7rrPhIs24Q=","fingerprint":{"rawId":941981783,"currentIndex":3,"deviceIndexes":[0,2]},"timestamp":"1744859607146"}
+1	app-state-sync-version	critical_block	{"version":4,"hash":{"type":"Buffer","data":[110,201,78,6,225,34,232,140,129,33,46,158,24,79,0,35,100,254,125,44,253,84,180,116,13,126,208,219,54,214,38,2,101,139,128,66,83,11,197,235,144,116,221,203,186,60,177,130,54,66,71,16,126,140,19,242,172,175,93,102,112,52,169,22,40,1,158,138,178,87,218,82,218,249,29,254,240,215,127,108,233,90,98,76,17,172,185,12,10,132,181,75,249,143,216,139,41,158,200,180,96,242,137,116,61,138,119,27,91,151,19,62,171,225,170,185,60,42,160,174,220,142,100,142,31,79,125,134]},"indexValueMap":{"ELnDoIH7QVFwzCZHKKM9tWV78FGHWsMTJwx0UZzf0X4=":{"valueMac":{"type":"Buffer","data":[182,154,118,101,16,142,14,150,189,56,123,70,81,141,75,72,187,18,231,149,66,145,27,87,10,208,236,164,88,57,35,176]}},"7N1qXcaW5CrjX1Q3ot/iN7Dw4yP/8Y3iia/6CgXwGnA=":{"valueMac":{"type":"Buffer","data":[36,75,179,68,253,136,30,49,137,89,7,94,147,44,192,121,224,4,94,188,39,120,33,187,119,192,215,190,16,71,247,178]}},"GPdkcq3h4gE+07QMhSB0Rwa0TM7Dp8grDJ6riR1uiXk=":{"valueMac":{"type":"Buffer","data":[41,173,108,175,22,240,152,68,107,103,105,3,89,22,27,130,216,174,187,46,237,188,211,134,233,232,176,163,132,222,14,28]}}}}
+1	session	51946893428.0	{"_sessions":{"BUyt4Fl/8eihoDI1CXCNEJwPAgUZykj//jutGFL55xIV":{"registrationId":706431519,"currentRatchet":{"ephemeralKeyPair":{"pubKey":"Bb9qsGvE201CPlfaviVKoHJxaBOke9k934x3lfYakCBC","privKey":"yA21XeKW8JEERwrL1VZOcrP6pS96Nrhliubq5x1icFI="},"lastRemoteEphemeralKey":"BdpJGopeK3d4bUrtF4tc0C38Z6/cA8nRAP8CKMfkp5t4","previousCounter":1,"rootKey":"GfAYPrdGy3AXxISEh7heN6ivKwOPRxzIigq0BtfHINM="},"indexInfo":{"baseKey":"BUyt4Fl/8eihoDI1CXCNEJwPAgUZykj//jutGFL55xIV","baseKeyType":2,"closed":-1,"used":1744882277477,"created":1744859629096,"remoteIdentityKey":"BR4rStte0jeaHjtIGO15Jan5fxdT66rwgyUs5b9BfacL"},"_chains":{"BbGpZZG7k3IPzktZJ+YUMu0Wts81sUhPz5wQ+F8zwWQH":{"chainKey":{"counter":8},"chainType":2,"messageKeys":{}},"BdpJGopeK3d4bUrtF4tc0C38Z6/cA8nRAP8CKMfkp5t4":{"chainKey":{"counter":1,"key":"kQQ08VFA2UdzjgN9IHtPSWY9rY/Htsvhf02vrQQ9sys="},"chainType":2,"messageKeys":{}},"Bb9qsGvE201CPlfaviVKoHJxaBOke9k934x3lfYakCBC":{"chainKey":{"counter":0,"key":"KpLGAeS1Tq2jveKiL8Dcw3/VgaYnbwNMxbrKryJlCH4="},"chainType":1,"messageKeys":{}}}}},"version":"v1"}
+1	session	51946893428.11	{"_sessions":{"BeJd47ebd82b34pprbydZlYRoLzRHDa5YB95cJKIRXhE":{"registrationId":182,"currentRatchet":{"ephemeralKeyPair":{"pubKey":"Be2J6j0+1pib0kcDvggUTLhBeBc2MxfLs4yVNViJzM4i","privKey":"qJuWpd0PnXUTEGPU7vym8SStiH3pxS90IjQ4nWDdHXo="},"lastRemoteEphemeralKey":"BZSq9rBAZJN9UhizAlksJ6BRkO1sLsILj1K83p5D2dQ5","previousCounter":0,"rootKey":"pscMrujS5VAiIoXVpuSzxFhfF2JHkUOjk+DM6JdWoaY="},"indexInfo":{"baseKey":"BeJd47ebd82b34pprbydZlYRoLzRHDa5YB95cJKIRXhE","baseKeyType":1,"closed":-1,"used":1744859866400,"created":1744859866400,"remoteIdentityKey":"BajTBGqa8w7EDf8OSVJcJyAbewmugpsXrorChEzdeSxG"},"_chains":{"Be2J6j0+1pib0kcDvggUTLhBeBc2MxfLs4yVNViJzM4i":{"chainKey":{"counter":2,"key":"sx2CN4Ne3+vzHaFw7nuJ83hgoJvSX0FvOLuvD9dNGog="},"chainType":1,"messageKeys":{}}},"pendingPreKey":{"signedKeyId":1,"baseKey":"BeJd47ebd82b34pprbydZlYRoLzRHDa5YB95cJKIRXhE","preKeyId":69}}},"version":"v1"}
+1	app-state-sync-version	regular_low	{"version":1,"hash":{"type":"Buffer","data":[45,231,165,223,20,14,187,175,17,33,118,201,161,165,223,158,97,151,86,163,15,19,237,137,25,206,235,181,103,159,153,240,47,92,114,209,147,2,251,237,143,17,141,34,76,180,179,157,135,160,238,32,17,122,49,93,15,56,136,94,129,133,239,7,184,52,11,216,39,58,218,23,218,29,156,160,92,48,7,227,204,228,125,36,93,139,6,39,184,156,138,88,193,5,222,247,1,43,94,64,180,95,32,194,138,133,56,142,179,92,20,182,175,242,182,242,83,85,68,20,83,163,33,49,69,42,210,142]},"indexValueMap":{"Z71XEvyI3cKpLynmepTtujF+w0TFKEqCeZ41GF1ZTNM=":{"valueMac":{"type":"Buffer","data":[45,247,75,125,41,57,129,165,253,226,226,150,171,244,135,43,72,209,140,113,29,189,213,9,221,144,230,72,87,9,27,75]}}}}
+1	session	51966377813.97	{"_sessions":{"BZAnJ/fVTlGIbG8vcGApK9EpIyjVoQlhHZQnzpRBoJkM":{"registrationId":740320949,"currentRatchet":{"ephemeralKeyPair":{"pubKey":"BSILcnsqan4BJYcTL2O1ls7K/fmz34AlpG8C8uT50uZS","privKey":"EOaaIkSOz9+6U6e3RsVlwjGVIg0s6MIOij/FWRsfv1Q="},"lastRemoteEphemeralKey":"BcC2H7yFSvMTIR16i8/but0V/4PeXsyOyAhvBB8Y8sAN","previousCounter":0,"rootKey":"4FlXcodkGGNl6SbPDjhgyQhvOGF+jAtEiVoRNGAIDy4="},"indexInfo":{"baseKey":"BZAnJ/fVTlGIbG8vcGApK9EpIyjVoQlhHZQnzpRBoJkM","baseKeyType":2,"closed":-1,"used":1744859834618,"created":1744859834618,"remoteIdentityKey":"BVo5rXgXKR12el22FXRG1+p7DOEFLiMahICjtFY2J7lh"},"_chains":{"BcC2H7yFSvMTIR16i8/but0V/4PeXsyOyAhvBB8Y8sAN":{"chainKey":{"counter":0,"key":"QAkHthyRR3GeKvXrVK/EGG7DIKUoBo5IVVgP4bRAPBE="},"chainType":2,"messageKeys":{}},"BSILcnsqan4BJYcTL2O1ls7K/fmz34AlpG8C8uT50uZS":{"chainKey":{"counter":1,"key":"PohozjGThRj3Qrz4I08wr4nBmF+MvwzRgp2D78wHidg="},"chainType":1,"messageKeys":{}}}}},"version":"v1"}
+1	session	51966377813.98	{"_sessions":{"BffmdGW7BxDqEUQPqFAloUaJx5RSDx7qLr3IgRuYDs0g":{"registrationId":1160294709,"currentRatchet":{"ephemeralKeyPair":{"pubKey":"BVjHICHPRBZ9j6lgOrRuAHzhir4mkq3ON/Cma8LRP6kh","privKey":"MK5u16358gXdccyn2S8C41MOOa1kKHqbwBspy3VNIko="},"lastRemoteEphemeralKey":"BUFHt+PBZHoLPBZpYRjHGgv94PTIdjJ8tydmWBF+z4oZ","previousCounter":0,"rootKey":"oxjhDIoKIag4Qow+HlHDFhkup3A3M8kt5BDAbyt+YEw="},"indexInfo":{"baseKey":"BffmdGW7BxDqEUQPqFAloUaJx5RSDx7qLr3IgRuYDs0g","baseKeyType":1,"closed":-1,"used":1744859866403,"created":1744859866403,"remoteIdentityKey":"BfR9q6734Ip4pQ2NnAZdFjj0kEIX6/xpFJIQLjX6Ej8a"},"_chains":{"BVjHICHPRBZ9j6lgOrRuAHzhir4mkq3ON/Cma8LRP6kh":{"chainKey":{"counter":1,"key":"wSMjX6Rb+JYdQlnrlowQ9hdb49NH7onsdg0XYyW33Ks="},"chainType":1,"messageKeys":{}}},"pendingPreKey":{"signedKeyId":1,"baseKey":"BffmdGW7BxDqEUQPqFAloUaJx5RSDx7qLr3IgRuYDs0g","preKeyId":336}}},"version":"v1"}
+1	session	51966377813.0	{"_sessions":{"BYYCKuMlK/RgDeD0epVEMOXrhC7sjrXPs0FTPg6DWH0q":{"registrationId":130517486,"currentRatchet":{"ephemeralKeyPair":{"pubKey":"BTPIo07WPx3itHgwm1+UkR+KF/1I1E5ij6BdASjpAOt+","privKey":"gFCdaG5FnuCpGVxxeFFYAX7sTQ0F00Z23MQanC0j9UQ="},"lastRemoteEphemeralKey":"BVpVhUc2BTb5wAeWjasqE6dqh7RLyhWksBPZOV2CYa4q","previousCounter":1,"rootKey":"3CCgxCVRaniDeTfjNznyDh52WpWXWAM+/7sJ+Obg6gQ="},"indexInfo":{"baseKey":"BYYCKuMlK/RgDeD0epVEMOXrhC7sjrXPs0FTPg6DWH0q","baseKeyType":1,"closed":-1,"used":1744879578718,"created":1744859866406,"remoteIdentityKey":"Bd4gN7uQeDDf4OtR2UmcCk3SFVKv/3HybkgWU0EWD7sh"},"_chains":{"BVpVhUc2BTb5wAeWjasqE6dqh7RLyhWksBPZOV2CYa4q":{"chainKey":{"counter":0,"key":"3a7ZCSBwHgtfadbp+n/ZwrHmJqW88UH/5JiyIFdv80k="},"chainType":2,"messageKeys":{}},"BTPIo07WPx3itHgwm1+UkR+KF/1I1E5ij6BdASjpAOt+":{"chainKey":{"counter":-1,"key":"CVbxeI3hE5nzhNHfH73wNrFtQ0z/JxZg6ML3LkV5h5k="},"chainType":1,"messageKeys":{}}}}},"version":"v1"}
+1	session	51941406964.0	{"_sessions":{"BSWKcV4nEIbyhBDmVGsl71IMgf0c1sa4k+crACsXj81D":{"registrationId":1041271659,"currentRatchet":{"ephemeralKeyPair":{"pubKey":"BWkJt9ltyEx5JhjPouz0ZvMtXLJljNmJm8aZtKO6+OtO","privKey":"yFDqmXxW2UCyW+ZI3J/XnSz0f/Q04t6WMzFhBiEtdks="},"lastRemoteEphemeralKey":"BZaxExwEIBTzb/CFbv0TWVuWsF7EvhBkIg/r26ThEbIJ","previousCounter":0,"rootKey":"uxxS7iMY9XIB+zK6bg7yeZHS0FSS+H6fsg83++1TOeQ="},"indexInfo":{"baseKey":"BSWKcV4nEIbyhBDmVGsl71IMgf0c1sa4k+crACsXj81D","baseKeyType":2,"closed":-1,"used":1744882275685,"created":1744882275685,"remoteIdentityKey":"Bd1DL6jvZEIJkEhOkrClcQKWqW5PNRbzBwdPp8HZiskp"},"_chains":{"BZaxExwEIBTzb/CFbv0TWVuWsF7EvhBkIg/r26ThEbIJ":{"chainKey":{"counter":0,"key":"glBESrLMO4GPPGII7jROUt9KYAgdRPJZk+xo2E2ozNQ="},"chainType":2,"messageKeys":{}},"BWkJt9ltyEx5JhjPouz0ZvMtXLJljNmJm8aZtKO6+OtO":{"chainKey":{"counter":0,"key":"Oir4gkcoZJIo3v63c9EoOK6D5RFgluY2Q0FnZ0a1Voo="},"chainType":1,"messageKeys":{}}}}},"version":"v1"}
+\.
+
+
+--
+-- TOC entry 3913 (class 0 OID 16892)
+-- Dependencies: 270
+-- Data for Name: CampaignSettings; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."CampaignSettings" (id, key, value, "companyId", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3916 (class 0 OID 16913)
+-- Dependencies: 273
+-- Data for Name: CampaignShipping; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."CampaignShipping" (id, "jobId", number, message, "confirmationMessage", confirmation, "contactId", "campaignId", "confirmationRequestedAt", "confirmedAt", "deliveredAt", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3911 (class 0 OID 16857)
+-- Dependencies: 268
+-- Data for Name: Campaigns; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Campaigns" (id, name, message1, message2, message3, message4, message5, "confirmationMessage1", "confirmationMessage2", "confirmationMessage3", "confirmationMessage4", "confirmationMessage5", status, confirmation, "mediaPath", "mediaName", "companyId", "contactListId", "whatsappId", "scheduledAt", "completedAt", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3924 (class 0 OID 16994)
+-- Dependencies: 281
+-- Data for Name: ChatMessages; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."ChatMessages" (id, "chatId", "senderId", message, "mediaPath", "mediaName", "createdAt", "updatedAt", "mediaType") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3922 (class 0 OID 16976)
+-- Dependencies: 279
+-- Data for Name: ChatUsers; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."ChatUsers" (id, "chatId", "userId", unreads, "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3920 (class 0 OID 16955)
+-- Dependencies: 277
+-- Data for Name: Chats; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Chats" (id, title, uuid, "ownerId", "lastMessage", "companyId", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3884 (class 0 OID 16550)
+-- Dependencies: 241
+-- Data for Name: Companies; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Companies" (id, name, phone, email, "createdAt", "updatedAt", "planId", status, schedules, "dueDate", recurrence) FROM stdin;
+1	Empresa 1	\N	\N	2025-04-16 23:03:32.086-03	2025-04-16 23:03:32.086-03	1	t	[]	2093-03-14 00:00:00-03	
+\.
+
+
+--
+-- TOC entry 3877 (class 0 OID 16470)
+-- Dependencies: 234
+-- Data for Name: ContactCustomFields; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."ContactCustomFields" (id, name, value, "contactId", "createdAt", "updatedAt") FROM stdin;
+1	Edad	35	1	2025-04-17 06:58:15.815-03	2025-04-17 06:58:15.815-03
+2	Estado Civil	Soltero	1	2025-04-17 06:58:15.815-03	2025-04-17 06:58:15.815-03
+3	Compañia	Pixel	5	2025-04-17 06:59:01.082-03	2025-04-17 06:59:01.082-03
+4	Edad	23	5	2025-04-17 06:59:20.713-03	2025-04-17 06:59:20.713-03
+\.
+
+
+--
+-- TOC entry 3909 (class 0 OID 16837)
+-- Dependencies: 266
+-- Data for Name: ContactListItems; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."ContactListItems" (id, name, number, email, "contactListId", "isWhatsappValid", "companyId", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3907 (class 0 OID 16825)
+-- Dependencies: 264
+-- Data for Name: ContactLists; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."ContactLists" (id, name, "companyId", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3870 (class 0 OID 16413)
+-- Dependencies: 227
+-- Data for Name: Contacts; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Contacts" (id, name, number, "profilePicUrl", "createdAt", "updatedAt", email, "isGroup", "companyId", channel, "disableBot", presence) FROM stdin;
+1	Jorge Donaires	51966377813	https://pps.whatsapp.net/v/t61.24694-24/132450933_1070882726670976_5496318700469166088_n.jpg?stp=dst-jpg_s96x96_tt6&ccb=11-4&oh=01_Q5Aa1QGJIRxxFl36qiKDIvnB3NfzIcN_EkG7ZVzp14LIwo1R3w&oe=680DEBDD&_nc_sid=5e03e0&_nc_cat=105	2025-04-17 00:17:14.739-03	2025-04-17 06:58:15.819-03		f	1	whatsapp	f	available
+5	Pixel Store Peru	51941406964	https://pps.whatsapp.net/v/t61.24694-24/404759210_892084755771959_3919890178447487603_n.jpg?stp=dst-jpg_s96x96_tt6&ccb=11-4&oh=01_Q5Aa1QE_LHxP7XbhoPXyjmHua9hgxbKjGvQAiKSrFJd_0R8xFg&oe=680DCE2E&_nc_sid=5e03e0&_nc_cat=107	2025-04-17 06:31:15.819-03	2025-04-17 06:59:20.717-03		f	1	whatsapp	f	available
+\.
+
+
+--
+-- TOC entry 3892 (class 0 OID 16652)
+-- Dependencies: 249
+-- Data for Name: Helps; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Helps" (id, title, description, video, link, "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3928 (class 0 OID 17035)
+-- Dependencies: 285
+-- Data for Name: Invoices; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Invoices" (id, detail, status, value, "createdAt", "updatedAt", "dueDate", "companyId", "txId", "payGw", "payGwData") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3873 (class 0 OID 16441)
+-- Dependencies: 230
+-- Data for Name: Messages; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Messages" (id, body, ack, read, "mediaType", "mediaUrl", "ticketId", "createdAt", "updatedAt", "fromMe", "isDeleted", "contactId", "quotedMsgId", "companyId", "remoteJid", "dataJson", participant, "queueId", channel, "isEdited", "thumbnailUrl") FROM stdin;
+47400499D16CDE5C9CE6A318C24AE5D3	Gracias por comunicarte con Eventos lacomunidad. ¿Cómo podemos ayudarte?	3	t	\N	\N	1	2025-04-17 00:17:15.269-03	2025-04-17 00:17:16.124-03	t	f	\N	\N	1	51966377813@s.whatsapp.net	{"key":{"remoteJid":"51966377813@s.whatsapp.net","fromMe":true,"id":"47400499D16CDE5C9CE6A318C24AE5D3"},"messageTimestamp":1744859835,"pushName":"Eventos lacomunidad","broadcast":false,"status":2,"message":{"conversation":"Gracias por comunicarte con Eventos lacomunidad. ¿Cómo podemos ayudarte?","messageContextInfo":{"messageSecret":"unNNEub+vqSgwvPKVHOokzzlwxtWuK6YLLOQLOBaHY8="}},"verifiedBizName":"Eventos lacomunidad"}	\N	\N	whatsapp	f	\N
+0E1E2FC92087858846B909E4E809553F	Gracias por tu mensaje. En este momento no podemos responder, pero lo haremos lo antes posible.	3	t	\N	\N	1	2025-04-17 00:17:15.424-03	2025-04-17 00:17:16.287-03	t	f	\N	\N	1	51966377813@s.whatsapp.net	{"key":{"remoteJid":"51966377813@s.whatsapp.net","fromMe":true,"id":"0E1E2FC92087858846B909E4E809553F"},"messageTimestamp":1744859835,"pushName":"Eventos lacomunidad","broadcast":false,"status":2,"message":{"conversation":"Gracias por tu mensaje. En este momento no podemos responder, pero lo haremos lo antes posible.","messageContextInfo":{"messageSecret":"z5lAtQryRD0wrs028MgQfoG5puTSspWJF33VRerVSjg="}},"verifiedBizName":"Eventos lacomunidad"}	\N	\N	whatsapp	f	\N
+3FC08BBC3535262AC043	Hola	0	t	\N	\N	1	2025-04-17 00:17:14.774-03	2025-04-17 00:17:40.965-03	f	f	1	\N	1	51966377813@s.whatsapp.net	{"key":{"remoteJid":"51966377813@s.whatsapp.net","fromMe":false,"id":"3FC08BBC3535262AC043"},"messageTimestamp":1744859834,"pushName":"Jorge Donaires","broadcast":false,"message":{"extendedTextMessage":{"text":"Hola","contextInfo":{"expiration":0,"ephemeralSettingTimestamp":"0","disappearingMode":{"initiator":"CHANGED_IN_CHAT"}}},"messageContextInfo":{"deviceListMetadata":{"senderKeyHash":"AP6LImUBKfGhIQ==","senderTimestamp":"1744434407","recipientKeyHash":"xwinGEeyULIDag==","recipientTimestamp":"1744829203"},"deviceListMetadataVersion":2}}}	\N	\N	whatsapp	f	\N
+3EB0243976C054F2678D0D	*Admin:*\nHola	3	t	\N	\N	1	2025-04-17 00:17:46.427-03	2025-04-17 00:17:46.634-03	t	f	\N	\N	1	51966377813@s.whatsapp.net	{"key":{"remoteJid":"51966377813@s.whatsapp.net","fromMe":true,"id":"3EB0243976C054F2678D0D"},"message":{"extendedTextMessage":{"text":"*Admin:*\\nHola"}},"messageTimestamp":"1744859866","status":"PENDING"}		\N	whatsapp	f	\N
+3EB0F55E30B830F1DEB7C3	*Admin:*\ny qué tal todo ?	3	t	\N	\N	1	2025-04-17 00:34:45.965-03	2025-04-17 00:34:46.177-03	t	f	\N	\N	1	51966377813@s.whatsapp.net	{"key":{"remoteJid":"51966377813@s.whatsapp.net","fromMe":true,"id":"3EB0F55E30B830F1DEB7C3"},"message":{"extendedTextMessage":{"text":"*Admin:*\\ny qué tal todo ?"}},"messageTimestamp":"1744860885","status":"PENDING"}		\N	whatsapp	f	\N
+3A393BE21703C2158411	I	0	t	\N	\N	1	2025-04-17 05:46:18.871-03	2025-04-17 06:00:29.851-03	f	f	1	\N	1	51966377813@s.whatsapp.net	{"key":{"remoteJid":"51966377813@s.whatsapp.net","fromMe":false,"id":"3A393BE21703C2158411"},"messageTimestamp":1744879578,"pushName":"Jorge Donaires","broadcast":false,"message":{"conversation":"I","messageContextInfo":{"deviceListMetadata":{"senderKeyHash":"WdkR0UbdWW9mlw==","senderTimestamp":"1744434407","recipientKeyHash":"xwinGEeyULIDag==","recipientTimestamp":"1743528647"},"deviceListMetadataVersion":2,"messageSecret":"ARq9O4gEa3SrxuwSgBvPRzVTklqEKzmTyT8EkCjSgJM="}}}	\N	\N	whatsapp	f	\N
+3A899397F09233373A3C	Hola	0	t	\N	\N	2	2025-04-17 06:31:15.837-03	2025-04-17 06:31:23.778-03	f	f	5	\N	1	51941406964@s.whatsapp.net	{"key":{"remoteJid":"51941406964@s.whatsapp.net","fromMe":false,"id":"3A899397F09233373A3C"},"messageTimestamp":1744882274,"pushName":"Pixel Store Peru","broadcast":false,"message":{"conversation":"Hola","messageContextInfo":{"deviceListMetadata":{"recipientKeyHash":"xwinGEeyULIDag==","recipientTimestamp":"1744859624"},"deviceListMetadataVersion":2,"messageSecret":"Jnb+XLkDD/g/jau7qSDn8iK448FYuIvxp9y7kPE3tx4="}},"verifiedBizName":"Pixel Store Peru"}	\N	\N	whatsapp	f	\N
+EFC1FB725F1C170EA3D57AE5E08C916F	Gracias por comunicarte con Eventos lacomunidad. ¿Cómo podemos ayudarte?	4	t	\N	\N	2	2025-04-17 06:31:17.459-03	2025-04-17 06:31:17.927-03	t	f	\N	\N	1	51941406964@s.whatsapp.net	{"key":{"remoteJid":"51941406964@s.whatsapp.net","fromMe":true,"id":"EFC1FB725F1C170EA3D57AE5E08C916F"},"messageTimestamp":1744882277,"pushName":"Eventos lacomunidad","broadcast":false,"status":2,"message":{"conversation":"Gracias por comunicarte con Eventos lacomunidad. ¿Cómo podemos ayudarte?","messageContextInfo":{"messageSecret":"+0NLlBwTp/aQxj529OUPVNb90KonROnatYkMG3deFJo="}}}	\N	\N	whatsapp	f	\N
+F673C49EAE17D63B4B6D658B0544FCD0	Gracias por tu mensaje. En este momento no podemos responder, pero lo haremos lo antes posible.	4	t	\N	\N	2	2025-04-17 06:31:17.615-03	2025-04-17 06:31:17.928-03	t	f	\N	\N	1	51941406964@s.whatsapp.net	{"key":{"remoteJid":"51941406964@s.whatsapp.net","fromMe":true,"id":"F673C49EAE17D63B4B6D658B0544FCD0"},"messageTimestamp":1744882277,"pushName":"Eventos lacomunidad","broadcast":false,"status":2,"message":{"conversation":"Gracias por tu mensaje. En este momento no podemos responder, pero lo haremos lo antes posible.","messageContextInfo":{"messageSecret":"rB0LS6zsWcc0UXGRFa7nwte2wFTC1oR+3tORB4uLAr4="}}}	\N	\N	whatsapp	f	\N
+3EB028C2C59F6E4F34A890	*Admin:*\nhola	4	t	\N	\N	2	2025-04-17 06:31:34.601-03	2025-04-17 06:31:35.3-03	t	f	\N	\N	1	51941406964@s.whatsapp.net	{"key":{"remoteJid":"51941406964@s.whatsapp.net","fromMe":true,"id":"3EB028C2C59F6E4F34A890"},"message":{"extendedTextMessage":{"text":"*Admin:*\\nhola"}},"messageTimestamp":"1744882294","status":"PENDING"}		\N	whatsapp	f	\N
+\.
+
+
+--
+-- TOC entry 3930 (class 0 OID 17065)
+-- Dependencies: 287
+-- Data for Name: OldMessages; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."OldMessages" (id, "messageId", body, "createdAt", "updatedAt", "ticketId") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3886 (class 0 OID 16596)
+-- Dependencies: 243
+-- Data for Name: Plans; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Plans" (id, name, users, connections, queues, "createdAt", "updatedAt", value, "isPublic") FROM stdin;
+1	Plano 1	10	10	10	2025-04-16 23:03:32.084-03	2025-04-16 23:03:32.084-03	30	t
+\.
+
+
+--
+-- TOC entry 3898 (class 0 OID 16729)
+-- Dependencies: 255
+-- Data for Name: QueueOptions; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."QueueOptions" (id, title, message, option, "queueId", "parentId", "createdAt", "updatedAt", "mediaName", "mediaPath", "forwardQueueId", "exitChatbot") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3880 (class 0 OID 16522)
+-- Dependencies: 237
+-- Data for Name: Queues; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Queues" (id, name, color, "greetingMessage", "createdAt", "updatedAt", "companyId", schedules, "outOfHoursMessage", "mediaName", "mediaPath") FROM stdin;
+1	Bienvenida	#b80000		2025-04-17 00:13:03.607-03	2025-04-17 00:13:03.607-03	1	[{"endTime": "18:00", "weekday": "Segunda-feira", "startTime": "08:00", "weekdayEn": "monday"}, {"endTime": "18:00", "weekday": "Terça-feira", "startTime": "08:00", "weekdayEn": "tuesday"}, {"endTime": "18:00", "weekday": "Quarta-feira", "startTime": "08:00", "weekdayEn": "wednesday"}, {"endTime": "18:00", "weekday": "Quinta-feira", "startTime": "08:00", "weekdayEn": "thursday"}, {"endTime": "18:00", "weekday": "Sexta-feira", "startTime": "08:00", "weekdayEn": "friday"}, {"endTime": "12:00", "weekday": "Sábado", "startTime": "08:00", "weekdayEn": "saturday"}, {"endTime": "00:00", "weekday": "Domingo", "startTime": "00:00", "weekdayEn": "sunday"}]			
+2	Seguimiento	#fccb00		2025-04-17 06:48:47.736-03	2025-04-17 06:48:47.736-03	1	[{"endTime": "18:00", "weekday": "Segunda-feira", "startTime": "08:00", "weekdayEn": "monday"}, {"endTime": "18:00", "weekday": "Terça-feira", "startTime": "08:00", "weekdayEn": "tuesday"}, {"endTime": "18:00", "weekday": "Quarta-feira", "startTime": "08:00", "weekdayEn": "wednesday"}, {"endTime": "18:00", "weekday": "Quinta-feira", "startTime": "08:00", "weekdayEn": "thursday"}, {"endTime": "18:00", "weekday": "Sexta-feira", "startTime": "08:00", "weekdayEn": "friday"}, {"endTime": "12:00", "weekday": "Sábado", "startTime": "08:00", "weekdayEn": "saturday"}, {"endTime": "00:00", "weekday": "Domingo", "startTime": "00:00", "weekdayEn": "sunday"}]			
+\.
+
+
+--
+-- TOC entry 3890 (class 0 OID 16637)
+-- Dependencies: 247
+-- Data for Name: QuickMessages; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."QuickMessages" (id, shortcode, message, "companyId", "createdAt", "updatedAt", "userId") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3900 (class 0 OID 16754)
+-- Dependencies: 257
+-- Data for Name: Schedules; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Schedules" (id, body, "sendAt", "sentAt", "contactId", "ticketId", "userId", "companyId", "createdAt", "updatedAt", status, "saveMessage") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3933 (class 0 OID 17170)
+-- Dependencies: 290
+-- Data for Name: SequelizeData; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."SequelizeData" (name) FROM stdin;
+20200904070005-create-default-company.js
+20200904070006-create-default-user.js
+20200904070007-create-default-settings.js
+\.
+
+
+--
+-- TOC entry 3866 (class 0 OID 16385)
+-- Dependencies: 223
+-- Data for Name: SequelizeMeta; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."SequelizeMeta" (name) FROM stdin;
+20200717133431-add-uuid-ossp.js
+20200717133438-create-users.js
+20200717144403-create-contacts.js
+20200717145643-create-tickets.js
+20200717151645-create-messages.js
+20200717170223-create-whatsapps.js
+20200723200315-create-contacts-custom-fields.js
+20200723202116-add-email-field-to-contacts.js
+20200730153237-remove-user-association-from-messages.js
+20200730153545-add-fromMe-to-messages.js
+20200813114236-change-ticket-lastMessage-column-type.js
+20200901235509-add-profile-column-to-users.js
+20200903215941-create-settings.js
+20200904220257-add-name-to-whatsapp.js
+20200906122228-add-name-default-field-to-whatsapp.js
+20200906155658-add-whatsapp-field-to-tickets.js
+20200919124112-update-default-column-name-on-whatsappp.js
+20200927220708-add-isDeleted-column-to-messages.js
+20200929145451-add-user-tokenVersion-column.js
+20200930162323-add-isGroup-column-to-tickets.js
+20200930194808-add-isGroup-column-to-contacts.js
+20201004150008-add-contactId-column-to-messages.js
+20201004155719-add-vcardContactId-column-to-messages.js
+20201004955719-remove-vcardContactId-column-to-messages.js
+20201026215410-add-retries-to-whatsapps.js
+20201028124427-add-quoted-msg-to-messages.js
+20210108001431-add-unreadMessages-to-tickets.js
+20210108164404-create-queues.js
+20210108164504-add-queueId-to-tickets.js
+20210108174594-associate-whatsapp-queue.js
+20210108204708-associate-users-queue.js
+20210109192513-add-greetingMessage-to-whatsapp.js
+20210109192514-create-companies-table.js
+20210109192515-add-column-companyId-to-Settings-table.js
+20210109192516-add-column-companyId-to-Users-table.js
+20210109192517-add-column-companyId-to-Contacts-table.js
+20210109192518-add-column-companyId-to-Messages-table.js
+20210109192519-add-column-companyId-to-Queues-table.js
+20210109192520-add-column-companyId-to-Whatsapps-table.js
+20210109192521-add-column-companyId-to-Tickets-table.js
+20210109192522-create-plans-table.js
+20210109192523-add-column-planId-to-Companies.js
+20210109192523-add-column-status-and-schedules-to-Companies.js
+20210109192523-create-ticket-notes.js
+20210109192524-create-quick-messages.js
+20210109192525-add-column-complationMessage-to-whatsapp.js
+20210109192526-add-column-outOfHoursMessage-to-whatsapp .js
+20210109192527-add-column-super-to-Users-table.js
+20210109192528-change-column-message-to-quick-messages-table.js
+20210109192529-create-helps.js
+20210109192530-add-unique-constraint-to-Contacts-table.js
+20210109192531-create-TicketTracking-table.js
+20210109192532-add-column-online-to-Users-table.js
+20210109192533-create-UserRatings-table.js
+20210109192534-add-rated-to-TicketTraking.js
+20210109192535-add-column-ratingMessage-to-whatsapp.js
+20210109192536-add-unique-constraint-to-Tickets-table.js
+20210818102606-add-uuid-to-tickets.js
+20210818102607-remove-unique-indexes-to-Contacts-table.js
+20210818102607-remove-unique-indexes-to-Queues-table.js
+20210818102608-add-unique-indexes-to-Queues-table.js
+20210818102609-add-token-to-Whatsapps.js
+20211205164404-create-queue-options.js
+20211212125704-add-chatbot-to-tickets.js
+20211227010200-create-schedules.js
+20220115114088-add-column-userId-to-QuickMessages-table.js
+20220117130000-create-tags.js
+20220117134400-associate-tickets-tags.js
+20220122160900-add-status-to-schedules.js
+20220220014719-add-farewellMessage-to-whatsapp.js
+20220221014717-add-provider-whatsapp.js
+20220221014718-add-remoteJid-messages.js
+20220221014719-add-jsonMessage-messages.js
+20220221014720-add-participant-messages.js
+20220221014721-create-baileys.js
+20220315110000-create-ContactLists-table.js
+20220315110001-create-ContactListItems-table.js
+20220315110002-create-Campaigns-table.js
+20220315110004-create-CampaignSettings-table.js
+20220315110005-remove-constraint-to-Settings.js
+20220321130000-create-CampaignShipping.js
+20220404000000-add-column-queueId-to-Messages-table.js
+20220406000000-add-column-dueDate-to-Companies.js
+20220406000001-add-column-recurrence-to-Companies.js
+20220411000000-add-column-startTime-and-endTime-to-Queues.js
+20220411000001-remove-column-startTime-and-endTime-to-Queues.js
+20220411000002-add-column-schedules-and-outOfHoursMessage-to-Queues.js
+20220411000003-create-table-Announcements.js
+20220425000000-create-table-Chats.js
+20220425000001-create-table-ChatUsers.js
+20220425000002-create-table-ChatMessages.js
+20220512000001-create-Indexes.js
+20220512000002-create-subscriptions.js
+20220512000003-create-invoices.js
+20220814000000-add-value-to-plans.js
+20222016014719-add-channel-session.js
+20222016014719-add-channel-to-contacts.js
+20222016014719-add-channel-to-message.js
+20222016014719-add-channel-to-ticket.js
+20222016014719-add-channel-token.js
+20222016014719-add-channel-tokenUser.js
+20222016014719-add-facebookPageUserId-whatsapp.js
+20222016014719-add-facebookUserId-whatsapp.js
+20230528202116-add-transferMessage-field-to-Whatsapp.js
+20230723301001-add-kanban-to-Tags.js
+20230813114236-change-ticket-lastMessage-column-type.js
+20230904212800-alter-value-to-plans.js
+20230915212800-add-public-to-plans.js
+20230918122800-add-media-to-Queues.js
+20230918142800-add-media-to-QueueOptions.js
+20231117174628-create-oldMessages.js
+20231219153800-add-isEdited-column-to-messages.js
+20231230100900-remove-unique-constraint-to-ticket-table.js
+20232016014719-add-column-mediaType-to-ChatMessages.js
+20240417150500-add-unique-constrait-to-Contacts-table.js
+20240418173900-changes-messages-and-oldmessages-tables.js
+20240504105300-add-paymentfields-to-invoices.js
+20240507112700-add-queue-options-fields.js
+20240522165800-add-disablebot-to-contact.js
+20240524011900-add-presence-to-contact.js
+20240620080700-create-baileysKeys.js
+20240814111700-create-user-socket-sessions.js
+20240827171200-add-thumbnailurl-to-messages.js
+20240914200100-whatsapps-change-unique-name.js
+20241013110200-whatsapps-channel-default.js
+20241110080800-change-QueueOptions-forwardQueueId-column.js
+20241128175500-create-insensitive-index-for-users-email.js
+20241128175800-add-save-messages-to-schedules.js
+20241201102700-add-unaccent-extension.js
+20250114172400-add-whatsappqueues-constraint.js
+20250114173900-add-userqueues-constraint.js
+20250116195300-add-whatsappqueues-constraint.js
+20250226163500-fix-queueoptions-constraints.js
+20250321122300-add-indexes-to-messages.js
+20250325080200-add-index-id-fromme-to-messages.js
+20250326110400-add-indexes-to-baileyskeys.js
+20250327164700-add-index-quotedMsgId-to-messages.js
+\.
+
+
+--
+-- TOC entry 3878 (class 0 OID 16486)
+-- Dependencies: 235
+-- Data for Name: Settings; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Settings" (key, value, "createdAt", "updatedAt", "companyId", id) FROM stdin;
+chatBotType	text	2025-04-16 23:03:32.156-03	2025-04-16 23:03:32.156-03	1	1
+userRating	disabled	2025-04-16 23:03:32.156-03	2025-04-16 23:03:32.156-03	1	2
+scheduleType	queue	2025-04-16 23:03:32.156-03	2025-04-16 23:03:32.156-03	1	3
+CheckMsgIsGroup	enabled	2025-04-16 23:03:32.156-03	2025-04-16 23:03:32.156-03	1	4
+call	disabled	2025-04-16 23:03:32.156-03	2025-04-16 23:03:32.156-03	1	5
+ipixc		2025-04-16 23:03:32.156-03	2025-04-16 23:03:32.156-03	1	6
+tokenixc		2025-04-16 23:03:32.156-03	2025-04-16 23:03:32.156-03	1	7
+ipmkauth		2025-04-16 23:03:32.156-03	2025-04-16 23:03:32.156-03	1	8
+clientidmkauth		2025-04-16 23:03:32.156-03	2025-04-16 23:03:32.156-03	1	9
+clientsecretmkauth		2025-04-16 23:03:32.156-03	2025-04-16 23:03:32.156-03	1	10
+asaas		2025-04-16 23:03:32.156-03	2025-04-16 23:03:32.156-03	1	11
+\.
+
+
+--
+-- TOC entry 3926 (class 0 OID 17020)
+-- Dependencies: 283
+-- Data for Name: Subscriptions; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Subscriptions" (id, "isActive", "expiresAt", "userPriceCents", "whatsPriceCents", "lastInvoiceUrl", "lastPlanChange", "companyId", "providerSubscriptionId", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3902 (class 0 OID 16788)
+-- Dependencies: 259
+-- Data for Name: Tags; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Tags" (id, name, color, "companyId", "createdAt", "updatedAt", kanban) FROM stdin;
+1	asdfasd	#A4CCCC	1	2025-04-17 06:17:54.001-03	2025-04-17 06:17:54.001-03	0
+2	Comida	#A4CCCC	1	2025-04-17 06:17:54.002-03	2025-04-17 06:17:54.002-03	0
+3	Bebida	#A4CCCC	1	2025-04-17 06:18:04.501-03	2025-04-17 06:18:04.501-03	0
+\.
+
+
+--
+-- TOC entry 3888 (class 0 OID 16615)
+-- Dependencies: 245
+-- Data for Name: TicketNotes; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."TicketNotes" (id, note, "userId", "contactId", "ticketId", "createdAt", "updatedAt") FROM stdin;
+1	Interesado en venir	1	5	2	2025-04-17 07:05:20.264-03	2025-04-17 07:05:20.264-03
+\.
+
+
+--
+-- TOC entry 3903 (class 0 OID 16801)
+-- Dependencies: 260
+-- Data for Name: TicketTags; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."TicketTags" ("ticketId", "tagId", "createdAt", "updatedAt") FROM stdin;
+1	2	2025-04-17 06:18:04.817-03	2025-04-17 06:18:04.817-03
+1	3	2025-04-17 06:18:04.817-03	2025-04-17 06:18:04.817-03
+2	1	2025-04-17 06:31:30.086-03	2025-04-17 06:31:30.086-03
+2	3	2025-04-17 06:31:30.086-03	2025-04-17 06:31:30.086-03
+\.
+
+
+--
+-- TOC entry 3894 (class 0 OID 16663)
+-- Dependencies: 251
+-- Data for Name: TicketTraking; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."TicketTraking" (id, "ticketId", "companyId", "whatsappId", "userId", "createdAt", "updatedAt", "queuedAt", "startedAt", "finishedAt", "ratingAt", rated) FROM stdin;
+1	1	1	1	1	2025-04-17 00:17:14.758-03	2025-04-17 00:17:40.971-03	\N	2025-04-17 00:17:40.971-03	\N	\N	f
+2	2	1	1	1	2025-04-17 06:31:15.829-03	2025-04-17 06:53:55.339-03	2025-04-17 06:53:55.284-03	2025-04-17 06:53:55.338-03	\N	\N	f
+\.
+
+
+--
+-- TOC entry 3872 (class 0 OID 16422)
+-- Dependencies: 229
+-- Data for Name: Tickets; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Tickets" (id, status, "lastMessage", "contactId", "userId", "createdAt", "updatedAt", "whatsappId", "isGroup", "unreadMessages", "queueId", "companyId", uuid, chatbot, "queueOptionId", channel) FROM stdin;
+1	open	I	1	1	2025-04-17 00:17:14.752-03	2025-04-17 05:46:18.868-03	1	f	0	\N	1	cb2ffe7b-2248-4fd2-a777-ca2a967cf371	f	\N	whatsapp
+2	open	*Admin:* hola	5	1	2025-04-17 06:31:15.825-03	2025-04-17 06:53:55.284-03	1	f	0	2	1	07f35bf9-79ae-426b-8368-b3c4b25aa0aa	f	\N	whatsapp
+\.
+
+
+--
+-- TOC entry 3882 (class 0 OID 16544)
+-- Dependencies: 239
+-- Data for Name: UserQueues; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."UserQueues" ("userId", "queueId", "createdAt", "updatedAt") FROM stdin;
+1	1	2025-04-17 06:48:08.538-03	2025-04-17 06:48:08.538-03
+2	1	2025-04-17 06:48:35.027-03	2025-04-17 06:48:35.027-03
+1	2	2025-04-17 06:48:56.879-03	2025-04-17 06:48:56.879-03
+\.
+
+
+--
+-- TOC entry 3896 (class 0 OID 16691)
+-- Dependencies: 253
+-- Data for Name: UserRatings; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."UserRatings" (id, "ticketId", "companyId", "userId", rate, "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3932 (class 0 OID 17109)
+-- Dependencies: 289
+-- Data for Name: UserSocketSessions; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."UserSocketSessions" (id, "userId", active, "createdAt", "updatedAt") FROM stdin;
+dboZYP__JrrGX8WgAAAC	1	f	2025-04-16 23:09:43.951-03	2025-04-16 23:35:32.486-03
+McQu56LbzBn9arUeAAAB	1	f	2025-04-17 00:12:28.87-03	2025-04-17 00:12:28.906-03
+Je4E0oglqVjpalZcAAAD	1	f	2025-04-17 00:12:30.367-03	2025-04-17 00:33:47.175-03
+26R2ghm6ry-cXxCeAAAF	1	f	2025-04-17 00:33:46.332-03	2025-04-17 00:34:53.296-03
+O-kEQzlwNhfozn4MAAAL	1	f	2025-04-17 01:30:49.898-03	2025-04-17 01:30:51.57-03
+oXOXWzXIpX7RERpZAAAH	1	f	2025-04-17 00:49:55.669-03	2025-04-17 01:30:58.98-03
+72Y549DoFhZPlXViAAAN	1	f	2025-04-17 01:30:52.48-03	2025-04-17 01:35:42.826-03
+gqo5IgIS9uGdaZG-AAAB	1	f	2025-04-17 01:36:12.538-03	2025-04-17 01:45:04.926-03
+u9L4rdG5P85DzpjSAAAB	1	f	2025-04-17 03:37:09.972-03	2025-04-17 03:37:11.875-03
+pKohiUaE76nXV9J2AAAD	1	f	2025-04-17 03:37:12.979-03	2025-04-17 04:19:40.035-03
+apWcmMLNu_kF2w7QAAAF	1	f	2025-04-17 04:19:45.097-03	2025-04-17 04:20:21.96-03
+kQBB_lWMy9EGXlKFAAAB	1	f	2025-04-17 04:21:20.107-03	2025-04-17 04:21:24.352-03
+2VNjcl3rlDxymIURAAAD	1	f	2025-04-17 04:21:25.541-03	2025-04-17 04:21:26.885-03
+yk2BfelZvpVfpHPBAAAF	1	f	2025-04-17 04:21:27.978-03	2025-04-17 04:21:29.938-03
+XjImPC7sjxD_aaKGAAAH	1	f	2025-04-17 04:21:31.585-03	2025-04-17 04:21:32.463-03
+FJvRplek8I4_lyTLAAAJ	1	f	2025-04-17 04:21:33.653-03	2025-04-17 04:21:34.808-03
+GLKYtwTAp3r42paGAAAL	1	f	2025-04-17 04:21:36.026-03	2025-04-17 04:23:39.389-03
+sXNuJ3jVX-Ixla-7AAAN	1	f	2025-04-17 04:23:40.823-03	2025-04-17 04:25:48.785-03
+AYQvlwfozpl1IedCAAAP	1	f	2025-04-17 04:25:50.393-03	2025-04-17 04:40:51.81-03
+u5siQifD4xytlbacAAAR	1	f	2025-04-17 04:40:53.369-03	2025-04-17 04:41:18.096-03
+uRcJojPcnfoEi0f3AAAB	1	f	2025-04-17 04:42:02.973-03	2025-04-17 04:42:04.906-03
+YwO5x7vOovb5s9I0AAAD	1	f	2025-04-17 04:42:06.025-03	2025-04-17 04:43:58.692-03
+IL-vj2X8uL23t4e6AAAB	1	f	2025-04-17 04:44:44.897-03	2025-04-17 04:44:46.334-03
+4wmrpigEJgifGefmAAAD	1	f	2025-04-17 04:44:47.457-03	2025-04-17 04:44:50.632-03
+MoW3urTSB5Otp6kSAAAF	1	f	2025-04-17 04:44:52.299-03	2025-04-17 04:45:37.208-03
+OY2yPpkfIMdCvAfNAAAH	1	f	2025-04-17 04:45:38.537-03	2025-04-17 04:53:22.728-03
+FBFXp3UMqH66ksJeAAAJ	1	f	2025-04-17 04:54:45.184-03	2025-04-17 04:54:48.489-03
+b5vX_WcRo4SxtVpIAAAL	1	f	2025-04-17 04:54:50.009-03	2025-04-17 04:54:55.26-03
+JjoVbxJtRwbC76O4AAAN	1	f	2025-04-17 04:54:56.988-03	2025-04-17 05:21:33.487-03
+CwVnG2I2RW_uesQsAAAP	1	f	2025-04-17 05:21:36.07-03	2025-04-17 05:21:37.842-03
+VXA-AkNuP83nJwXCAAAR	1	f	2025-04-17 05:21:39.167-03	2025-04-17 05:46:03.214-03
+P-hOt0t47hNUv5_gAAAT	1	f	2025-04-17 05:46:04.58-03	2025-04-17 06:00:27.36-03
+oMyoS7aTgqTgYHwAAAAV	1	f	2025-04-17 06:00:29.197-03	2025-04-17 06:00:31.424-03
+BVz0v-5bTCtUkgQ9AAAX	1	f	2025-04-17 06:00:32.524-03	2025-04-17 06:02:04.399-03
+p4CItOBdazpqB61pAAAZ	1	f	2025-04-17 06:02:05.819-03	2025-04-17 06:17:54.353-03
+1P0GZDX1a4uPPHMGAAAb	1	f	2025-04-17 06:17:55.722-03	2025-04-17 06:20:27.983-03
+fC4HitUiH6AjcsKlAAAd	1	t	2025-04-17 06:20:29.827-03	2025-04-17 06:20:29.827-03
+\.
+
+
+--
+-- TOC entry 3868 (class 0 OID 16402)
+-- Dependencies: 225
+-- Data for Name: Users; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Users" (id, name, email, "passwordHash", "createdAt", "updatedAt", profile, "tokenVersion", "companyId", super, online) FROM stdin;
+2	Jorge Donaires	jorge@donaires.com	$2a$08$sra88SzP.IsmFq8pPqiXDOPsDla6kS5LHeJqQdJgoEqoSKb1S8Ciq	2025-04-17 06:48:34.992-03	2025-04-17 06:48:34.992-03	user	0	1	f	f
+1	Admin	admin@ticketz.host	$2a$08$76jGwGDjpUEh8tX4.v.C3OI.8fqVw5Ehm6R/ZOeacNVEYwtX6n9Z2	2025-04-16 23:03:32.13-03	2025-04-17 06:53:06.168-03	admin	0	1	t	f
+\.
+
+
+--
+-- TOC entry 3881 (class 0 OID 16539)
+-- Dependencies: 238
+-- Data for Name: WhatsappQueues; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."WhatsappQueues" ("whatsappId", "queueId", "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- TOC entry 3875 (class 0 OID 16461)
+-- Dependencies: 232
+-- Data for Name: Whatsapps; Type: TABLE DATA; Schema: public; Owner: ticketz
+--
+
+COPY public."Whatsapps" (id, session, qrcode, status, battery, plugged, "createdAt", "updatedAt", name, "isDefault", retries, "greetingMessage", "companyId", "complationMessage", "outOfHoursMessage", "ratingMessage", token, "farewellMessage", provider, channel, "facebookUserToken", "tokenMeta", "facebookPageUserId", "facebookUserId", "transferMessage") FROM stdin;
+1	{"creds":{"noiseKey":{"private":{"type":"Buffer","data":"SI4L3tRtJvn5eEI9X6dYrcURRRh5Ukm9sTcIH4KJAn8="},"public":{"type":"Buffer","data":"TEfI5S8yxh2dDEvOI8Ip/2jsQzoVZikJiHbyFipkF08="}},"pairingEphemeralKeyPair":{"private":{"type":"Buffer","data":"yIi6cxwGIVBVSis/tVExQOI8bOifSEaI6cGfoKufh3U="},"public":{"type":"Buffer","data":"1NcJhMnZVq4mmqzffjRdIAgAftWIKjEqJVy2jcifogI="}},"signedIdentityKey":{"private":{"type":"Buffer","data":"EDae5EPjsn3VWfhkNTqRFO5yFQWAfC1uel5bm0djsFM="},"public":{"type":"Buffer","data":"ukz1rU06KUcyeueUgGvFufuS2fy7PYYevxpkgk5L9XQ="}},"signedPreKey":{"keyPair":{"private":{"type":"Buffer","data":"qIL+vKJdbUISdS0uZujoClf1TWfZ2lzd14P6vV21klk="},"public":{"type":"Buffer","data":"2Veqp50uP/ov84OOiaw0nGRyYuWkVIZHA1t/tweTM28="}},"signature":{"type":"Buffer","data":"QUymVHXnedpVw8/bObW02ZS2FYJO/Uq2DER2NLCUO8wwtatqjWP7mKhh3eN6/jgnY/cg/nytFcNA0CMi68AVhQ=="},"keyId":1},"registrationId":185,"advSecretKey":"co/vXteVE84TwUHnQqoUZApXJHh/1jGKJZM0HsM7v4Y=","processedHistoryMessages":[{"key":{"remoteJid":"51946893428@s.whatsapp.net","fromMe":true,"id":"FCFB23C3F60E70C55DA7F34575CCEAF4"},"messageTimestamp":1744859629},{"key":{"remoteJid":"51946893428@s.whatsapp.net","fromMe":true,"id":"07B55A504B8F8F4AA19E65029CBD0334"},"messageTimestamp":1744859629},{"key":{"remoteJid":"51946893428@s.whatsapp.net","fromMe":true,"id":"E235DEF0CA181956957366DC788B8D36"},"messageTimestamp":1744859632}],"nextPreKeyId":31,"firstUnuploadedPreKeyId":31,"accountSyncCounter":1,"accountSettings":{"unarchiveChats":false},"registered":false,"account":{"details":"CNeAlsEDEOjjgcAGGAQgACgA","accountSignatureKey":"HitK217SN5oeO0gY7Xklqfl/F1PrqvCDJSzlv0F9pws=","accountSignature":"UxwAZOLfJh1wA/XkntCaYg/mk6cNBeQEJq6/sYWio2fVJFxKx1M/lZoQ9q1b6+o8u7Oh7B/WQzPMbDD54gZEAg==","deviceSignature":"Sc1bC3ie5JdFWOk4Hz8s3qKD4gCHBX0LslhLxQJsHygKzT8Np41PI4+4MZDhHpWzG9JwN6oQcNwxeAbbEM5Zjw=="},"me":{"id":"51946893428:13@s.whatsapp.net","name":"Eventos lacomunidad","lid":"85324474618005:13@lid"},"signalIdentities":[{"identifier":{"name":"51946893428:13@s.whatsapp.net","deviceId":0},"identifierKey":{"type":"Buffer","data":"BR4rStte0jeaHjtIGO15Jan5fxdT66rwgyUs5b9BfacL"}}],"platform":"smba","routingInfo":{"type":"Buffer","data":"CAIIEg=="},"lastAccountSyncTimestamp":1744864570,"lastPropHash":"PWk5B","myAppStateKeyId":"AAAAABen"},"keys":{}}		CONNECTED	\N	\N	2025-04-17 00:13:37.104-03	2025-04-17 04:44:45.026-03	Eventos	t	0		1						beta	whatsapp	\N	\N	\N	\N	
+\.
+
+
+--
+-- TOC entry 4055 (class 0 OID 0)
+-- Dependencies: 274
+-- Name: Announcements_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Announcements_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4056 (class 0 OID 0)
+-- Dependencies: 261
+-- Name: Baileys_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Baileys_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4057 (class 0 OID 0)
+-- Dependencies: 269
+-- Name: CampaignSettings_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."CampaignSettings_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4058 (class 0 OID 0)
+-- Dependencies: 272
+-- Name: CampaignShipping_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."CampaignShipping_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4059 (class 0 OID 0)
+-- Dependencies: 267
+-- Name: Campaigns_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Campaigns_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4060 (class 0 OID 0)
+-- Dependencies: 280
+-- Name: ChatMessages_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."ChatMessages_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4061 (class 0 OID 0)
+-- Dependencies: 278
+-- Name: ChatUsers_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."ChatUsers_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4062 (class 0 OID 0)
+-- Dependencies: 276
+-- Name: Chats_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Chats_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4063 (class 0 OID 0)
+-- Dependencies: 240
+-- Name: Companies_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Companies_id_seq"', 1, true);
+
+
+--
+-- TOC entry 4064 (class 0 OID 0)
+-- Dependencies: 233
+-- Name: ContactCustomFields_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."ContactCustomFields_id_seq"', 4, true);
+
+
+--
+-- TOC entry 4065 (class 0 OID 0)
+-- Dependencies: 265
+-- Name: ContactListItems_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."ContactListItems_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4066 (class 0 OID 0)
+-- Dependencies: 263
+-- Name: ContactLists_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."ContactLists_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4067 (class 0 OID 0)
+-- Dependencies: 226
+-- Name: Contacts_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Contacts_id_seq"', 7, true);
+
+
+--
+-- TOC entry 4068 (class 0 OID 0)
+-- Dependencies: 248
+-- Name: Helps_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Helps_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4069 (class 0 OID 0)
+-- Dependencies: 284
+-- Name: Invoices_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Invoices_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4070 (class 0 OID 0)
+-- Dependencies: 286
+-- Name: OldMessages_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."OldMessages_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4071 (class 0 OID 0)
+-- Dependencies: 242
+-- Name: Plans_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Plans_id_seq"', 1, true);
+
+
+--
+-- TOC entry 4072 (class 0 OID 0)
+-- Dependencies: 254
+-- Name: QueueOptions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."QueueOptions_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4073 (class 0 OID 0)
+-- Dependencies: 236
+-- Name: Queues_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Queues_id_seq"', 2, true);
+
+
+--
+-- TOC entry 4074 (class 0 OID 0)
+-- Dependencies: 246
+-- Name: QuickMessages_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."QuickMessages_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4075 (class 0 OID 0)
+-- Dependencies: 256
+-- Name: Schedules_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Schedules_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4076 (class 0 OID 0)
+-- Dependencies: 271
+-- Name: Settings_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Settings_id_seq"', 11, true);
+
+
+--
+-- TOC entry 4077 (class 0 OID 0)
+-- Dependencies: 282
+-- Name: Subscriptions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Subscriptions_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4078 (class 0 OID 0)
+-- Dependencies: 258
+-- Name: Tags_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Tags_id_seq"', 3, true);
+
+
+--
+-- TOC entry 4079 (class 0 OID 0)
+-- Dependencies: 244
+-- Name: TicketNotes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."TicketNotes_id_seq"', 1, true);
+
+
+--
+-- TOC entry 4080 (class 0 OID 0)
+-- Dependencies: 250
+-- Name: TicketTraking_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."TicketTraking_id_seq"', 2, true);
+
+
+--
+-- TOC entry 4081 (class 0 OID 0)
+-- Dependencies: 228
+-- Name: Tickets_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Tickets_id_seq"', 2, true);
+
+
+--
+-- TOC entry 4082 (class 0 OID 0)
+-- Dependencies: 252
+-- Name: UserRatings_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."UserRatings_id_seq"', 1, false);
+
+
+--
+-- TOC entry 4083 (class 0 OID 0)
+-- Dependencies: 224
+-- Name: Users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Users_id_seq"', 2, true);
+
+
+--
+-- TOC entry 4084 (class 0 OID 0)
+-- Dependencies: 231
+-- Name: Whatsapps_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ticketz
+--
+
+SELECT pg_catalog.setval('public."Whatsapps_id_seq"', 1, true);
+
+
+--
+-- TOC entry 3624 (class 2606 OID 16948)
+-- Name: Announcements Announcements_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Announcements"
+    ADD CONSTRAINT "Announcements_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3639 (class 2606 OID 17103)
+-- Name: BaileysKeys BaileysKeys_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."BaileysKeys"
+    ADD CONSTRAINT "BaileysKeys_pkey" PRIMARY KEY ("whatsappId", type, key);
+
+
+--
+-- TOC entry 3610 (class 2606 OID 16823)
+-- Name: Baileys Baileys_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Baileys"
+    ADD CONSTRAINT "Baileys_pkey" PRIMARY KEY (id, "whatsappId");
+
+
+--
+-- TOC entry 3619 (class 2606 OID 16899)
+-- Name: CampaignSettings CampaignSettings_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."CampaignSettings"
+    ADD CONSTRAINT "CampaignSettings_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3621 (class 2606 OID 16920)
+-- Name: CampaignShipping CampaignShipping_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."CampaignShipping"
+    ADD CONSTRAINT "CampaignShipping_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3617 (class 2606 OID 16875)
+-- Name: Campaigns Campaigns_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Campaigns"
+    ADD CONSTRAINT "Campaigns_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3630 (class 2606 OID 17002)
+-- Name: ChatMessages ChatMessages_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ChatMessages"
+    ADD CONSTRAINT "ChatMessages_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3628 (class 2606 OID 16982)
+-- Name: ChatUsers ChatUsers_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ChatUsers"
+    ADD CONSTRAINT "ChatUsers_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3626 (class 2606 OID 16964)
+-- Name: Chats Chats_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Chats"
+    ADD CONSTRAINT "Chats_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3584 (class 2606 OID 16559)
+-- Name: Companies Companies_name_key; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Companies"
+    ADD CONSTRAINT "Companies_name_key" UNIQUE (name);
+
+
+--
+-- TOC entry 3586 (class 2606 OID 16557)
+-- Name: Companies Companies_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Companies"
+    ADD CONSTRAINT "Companies_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3572 (class 2606 OID 16477)
+-- Name: ContactCustomFields ContactCustomFields_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ContactCustomFields"
+    ADD CONSTRAINT "ContactCustomFields_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3614 (class 2606 OID 16845)
+-- Name: ContactListItems ContactListItems_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ContactListItems"
+    ADD CONSTRAINT "ContactListItems_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3612 (class 2606 OID 16830)
+-- Name: ContactLists ContactLists_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ContactLists"
+    ADD CONSTRAINT "ContactLists_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3554 (class 2606 OID 16420)
+-- Name: Contacts Contacts_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Contacts"
+    ADD CONSTRAINT "Contacts_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3596 (class 2606 OID 16659)
+-- Name: Helps Helps_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Helps"
+    ADD CONSTRAINT "Helps_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3634 (class 2606 OID 17042)
+-- Name: Invoices Invoices_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Invoices"
+    ADD CONSTRAINT "Invoices_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3561 (class 2606 OID 17082)
+-- Name: Messages Messges_id_ticketId_pk; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Messages"
+    ADD CONSTRAINT "Messges_id_ticketId_pk" PRIMARY KEY (id, "ticketId");
+
+
+--
+-- TOC entry 3637 (class 2606 OID 17072)
+-- Name: OldMessages OldMessages_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."OldMessages"
+    ADD CONSTRAINT "OldMessages_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3588 (class 2606 OID 16606)
+-- Name: Plans Plans_name_key; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Plans"
+    ADD CONSTRAINT "Plans_name_key" UNIQUE (name);
+
+
+--
+-- TOC entry 3590 (class 2606 OID 16604)
+-- Name: Plans Plans_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Plans"
+    ADD CONSTRAINT "Plans_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3602 (class 2606 OID 16736)
+-- Name: QueueOptions QueueOptions_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."QueueOptions"
+    ADD CONSTRAINT "QueueOptions_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3574 (class 2606 OID 16727)
+-- Name: Queues Queues_color_key; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Queues"
+    ADD CONSTRAINT "Queues_color_key" UNIQUE (color, "companyId");
+
+
+--
+-- TOC entry 3576 (class 2606 OID 16725)
+-- Name: Queues Queues_name_key; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Queues"
+    ADD CONSTRAINT "Queues_name_key" UNIQUE (name, "companyId");
+
+
+--
+-- TOC entry 3578 (class 2606 OID 16529)
+-- Name: Queues Queues_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Queues"
+    ADD CONSTRAINT "Queues_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3594 (class 2606 OID 16644)
+-- Name: QuickMessages QuickMessages_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."QuickMessages"
+    ADD CONSTRAINT "QuickMessages_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3604 (class 2606 OID 16761)
+-- Name: Schedules Schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Schedules"
+    ADD CONSTRAINT "Schedules_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3644 (class 2606 OID 17174)
+-- Name: SequelizeData SequelizeData_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."SequelizeData"
+    ADD CONSTRAINT "SequelizeData_pkey" PRIMARY KEY (name);
+
+
+--
+-- TOC entry 3547 (class 2606 OID 16389)
+-- Name: SequelizeMeta SequelizeMeta_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."SequelizeMeta"
+    ADD CONSTRAINT "SequelizeMeta_pkey" PRIMARY KEY (name);
+
+
+--
+-- TOC entry 3632 (class 2606 OID 17028)
+-- Name: Subscriptions Subscriptions_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Subscriptions"
+    ADD CONSTRAINT "Subscriptions_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3607 (class 2606 OID 16795)
+-- Name: Tags Tags_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Tags"
+    ADD CONSTRAINT "Tags_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3592 (class 2606 OID 16620)
+-- Name: TicketNotes TicketNotes_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketNotes"
+    ADD CONSTRAINT "TicketNotes_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3598 (class 2606 OID 16668)
+-- Name: TicketTraking TicketTraking_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketTraking"
+    ADD CONSTRAINT "TicketTraking_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3559 (class 2606 OID 16430)
+-- Name: Tickets Tickets_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Tickets"
+    ADD CONSTRAINT "Tickets_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3582 (class 2606 OID 16548)
+-- Name: UserQueues UserQueues_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."UserQueues"
+    ADD CONSTRAINT "UserQueues_pkey" PRIMARY KEY ("userId", "queueId");
+
+
+--
+-- TOC entry 3600 (class 2606 OID 16697)
+-- Name: UserRatings UserRatings_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."UserRatings"
+    ADD CONSTRAINT "UserRatings_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3642 (class 2606 OID 17114)
+-- Name: UserSocketSessions UserSocketSessions_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."UserSocketSessions"
+    ADD CONSTRAINT "UserSocketSessions_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3549 (class 2606 OID 16411)
+-- Name: Users Users_email_key; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Users"
+    ADD CONSTRAINT "Users_email_key" UNIQUE (email);
+
+
+--
+-- TOC entry 3551 (class 2606 OID 16409)
+-- Name: Users Users_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Users"
+    ADD CONSTRAINT "Users_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3580 (class 2606 OID 16543)
+-- Name: WhatsappQueues WhatsappQueues_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."WhatsappQueues"
+    ADD CONSTRAINT "WhatsappQueues_pkey" PRIMARY KEY ("whatsappId", "queueId");
+
+
+--
+-- TOC entry 3568 (class 2606 OID 16468)
+-- Name: Whatsapps Whatsapps_pkey; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Whatsapps"
+    ADD CONSTRAINT "Whatsapps_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 3570 (class 2606 OID 17121)
+-- Name: Whatsapps company_name_constraint; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Whatsapps"
+    ADD CONSTRAINT company_name_constraint UNIQUE ("companyId", name);
+
+
+--
+-- TOC entry 3557 (class 2606 OID 17080)
+-- Name: Contacts number_companyid_unique; Type: CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Contacts"
+    ADD CONSTRAINT number_companyid_unique UNIQUE (number, "companyId");
+
+
+--
+-- TOC entry 3640 (class 1259 OID 17168)
+-- Name: idx_baileyskeys_whatsappid_type_key; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_baileyskeys_whatsappid_type_key ON public."BaileysKeys" USING btree ("whatsappId", type, key);
+
+
+--
+-- TOC entry 3555 (class 1259 OID 17015)
+-- Name: idx_cont_company_id; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_cont_company_id ON public."Contacts" USING btree ("companyId");
+
+
+--
+-- TOC entry 3622 (class 1259 OID 17017)
+-- Name: idx_cpsh_campaign_id; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_cpsh_campaign_id ON public."CampaignShipping" USING btree ("campaignId");
+
+
+--
+-- TOC entry 3615 (class 1259 OID 17018)
+-- Name: idx_ctli_contact_list_id; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_ctli_contact_list_id ON public."ContactListItems" USING btree ("contactListId");
+
+
+--
+-- TOC entry 3552 (class 1259 OID 17136)
+-- Name: idx_lower_email; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_lower_email ON public."Users" USING btree (lower((email)::text));
+
+
+--
+-- TOC entry 3562 (class 1259 OID 17165)
+-- Name: idx_messages_companyid_contactid; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_messages_companyid_contactid ON public."Messages" USING btree ("companyId", "contactId");
+
+
+--
+-- TOC entry 3563 (class 1259 OID 17167)
+-- Name: idx_messages_id_fromme; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_messages_id_fromme ON public."Messages" USING btree (id, "fromMe");
+
+
+--
+-- TOC entry 3564 (class 1259 OID 17166)
+-- Name: idx_messages_ticketid_companyid; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_messages_ticketid_companyid ON public."Messages" USING btree ("ticketId", "companyId");
+
+
+--
+-- TOC entry 3565 (class 1259 OID 17169)
+-- Name: idx_messages_ticketid_quotedmsgid; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_messages_ticketid_quotedmsgid ON public."Messages" USING btree ("ticketId", "quotedMsgId");
+
+
+--
+-- TOC entry 3566 (class 1259 OID 17016)
+-- Name: idx_ms_company_id_ticket_id; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_ms_company_id_ticket_id ON public."Messages" USING btree ("companyId", "ticketId");
+
+
+--
+-- TOC entry 3605 (class 1259 OID 17013)
+-- Name: idx_sched_company_id; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_sched_company_id ON public."Schedules" USING btree ("companyId");
+
+
+--
+-- TOC entry 3608 (class 1259 OID 17014)
+-- Name: idx_tg_company_id; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_tg_company_id ON public."Tags" USING btree ("companyId");
+
+
+--
+-- TOC entry 3635 (class 1259 OID 17088)
+-- Name: idx_txid; Type: INDEX; Schema: public; Owner: ticketz
+--
+
+CREATE INDEX idx_txid ON public."Invoices" USING btree ("txId");
+
+
+--
+-- TOC entry 3697 (class 2606 OID 16949)
+-- Name: Announcements Announcements_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Announcements"
+    ADD CONSTRAINT "Announcements_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3707 (class 2606 OID 17104)
+-- Name: BaileysKeys BaileysKeys_whatsappId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."BaileysKeys"
+    ADD CONSTRAINT "BaileysKeys_whatsappId_fkey" FOREIGN KEY ("whatsappId") REFERENCES public."Whatsapps"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3694 (class 2606 OID 16900)
+-- Name: CampaignSettings CampaignSettings_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."CampaignSettings"
+    ADD CONSTRAINT "CampaignSettings_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3695 (class 2606 OID 16926)
+-- Name: CampaignShipping CampaignShipping_campaignId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."CampaignShipping"
+    ADD CONSTRAINT "CampaignShipping_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES public."Campaigns"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3696 (class 2606 OID 16921)
+-- Name: CampaignShipping CampaignShipping_contactId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."CampaignShipping"
+    ADD CONSTRAINT "CampaignShipping_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES public."ContactListItems"(id) ON UPDATE SET NULL ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3691 (class 2606 OID 16876)
+-- Name: Campaigns Campaigns_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Campaigns"
+    ADD CONSTRAINT "Campaigns_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3692 (class 2606 OID 16881)
+-- Name: Campaigns Campaigns_contactListId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Campaigns"
+    ADD CONSTRAINT "Campaigns_contactListId_fkey" FOREIGN KEY ("contactListId") REFERENCES public."ContactLists"(id) ON UPDATE SET NULL ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3693 (class 2606 OID 16886)
+-- Name: Campaigns Campaigns_whatsappId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Campaigns"
+    ADD CONSTRAINT "Campaigns_whatsappId_fkey" FOREIGN KEY ("whatsappId") REFERENCES public."Whatsapps"(id) ON UPDATE SET NULL ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3702 (class 2606 OID 17003)
+-- Name: ChatMessages ChatMessages_chatId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ChatMessages"
+    ADD CONSTRAINT "ChatMessages_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES public."Chats"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3703 (class 2606 OID 17008)
+-- Name: ChatMessages ChatMessages_senderId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ChatMessages"
+    ADD CONSTRAINT "ChatMessages_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES public."Users"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3700 (class 2606 OID 16983)
+-- Name: ChatUsers ChatUsers_chatId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ChatUsers"
+    ADD CONSTRAINT "ChatUsers_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES public."Chats"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3701 (class 2606 OID 16988)
+-- Name: ChatUsers ChatUsers_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ChatUsers"
+    ADD CONSTRAINT "ChatUsers_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."Users"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3698 (class 2606 OID 16970)
+-- Name: Chats Chats_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Chats"
+    ADD CONSTRAINT "Chats_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3699 (class 2606 OID 16965)
+-- Name: Chats Chats_ownerId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Chats"
+    ADD CONSTRAINT "Chats_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES public."Users"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3665 (class 2606 OID 16607)
+-- Name: Companies Companies_planId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Companies"
+    ADD CONSTRAINT "Companies_planId_fkey" FOREIGN KEY ("planId") REFERENCES public."Plans"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3658 (class 2606 OID 16478)
+-- Name: ContactCustomFields ContactCustomFields_contactId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ContactCustomFields"
+    ADD CONSTRAINT "ContactCustomFields_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES public."Contacts"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3689 (class 2606 OID 16851)
+-- Name: ContactListItems ContactListItems_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ContactListItems"
+    ADD CONSTRAINT "ContactListItems_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3690 (class 2606 OID 16846)
+-- Name: ContactListItems ContactListItems_contactListId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ContactListItems"
+    ADD CONSTRAINT "ContactListItems_contactListId_fkey" FOREIGN KEY ("contactListId") REFERENCES public."ContactLists"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3688 (class 2606 OID 16831)
+-- Name: ContactLists ContactLists_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."ContactLists"
+    ADD CONSTRAINT "ContactLists_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3646 (class 2606 OID 16570)
+-- Name: Contacts Contacts_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Contacts"
+    ADD CONSTRAINT "Contacts_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3705 (class 2606 OID 17043)
+-- Name: Invoices Invoices_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Invoices"
+    ADD CONSTRAINT "Invoices_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3653 (class 2606 OID 16575)
+-- Name: Messages Messages_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Messages"
+    ADD CONSTRAINT "Messages_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3654 (class 2606 OID 16505)
+-- Name: Messages Messages_contactId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Messages"
+    ADD CONSTRAINT "Messages_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES public."Contacts"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3655 (class 2606 OID 16931)
+-- Name: Messages Messages_queueId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Messages"
+    ADD CONSTRAINT "Messages_queueId_fkey" FOREIGN KEY ("queueId") REFERENCES public."Queues"(id) ON UPDATE SET NULL ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3656 (class 2606 OID 16455)
+-- Name: Messages Messages_ticketId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Messages"
+    ADD CONSTRAINT "Messages_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES public."Tickets"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3706 (class 2606 OID 17083)
+-- Name: OldMessages OldMessages_ticketId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."OldMessages"
+    ADD CONSTRAINT "OldMessages_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES public."Tickets"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3678 (class 2606 OID 17131)
+-- Name: QueueOptions QueueOptions_forwardQueueId_fkey1; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."QueueOptions"
+    ADD CONSTRAINT "QueueOptions_forwardQueueId_fkey1" FOREIGN KEY ("forwardQueueId") REFERENCES public."Queues"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3679 (class 2606 OID 16742)
+-- Name: QueueOptions QueueOptions_parentId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."QueueOptions"
+    ADD CONSTRAINT "QueueOptions_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES public."QueueOptions"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3680 (class 2606 OID 16737)
+-- Name: QueueOptions QueueOptions_queueId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."QueueOptions"
+    ADD CONSTRAINT "QueueOptions_queueId_fkey" FOREIGN KEY ("queueId") REFERENCES public."Queues"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3660 (class 2606 OID 16580)
+-- Name: Queues Queues_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Queues"
+    ADD CONSTRAINT "Queues_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3669 (class 2606 OID 16645)
+-- Name: QuickMessages QuickMessages_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."QuickMessages"
+    ADD CONSTRAINT "QuickMessages_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3670 (class 2606 OID 16782)
+-- Name: QuickMessages QuickMessages_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."QuickMessages"
+    ADD CONSTRAINT "QuickMessages_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."Users"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3681 (class 2606 OID 16777)
+-- Name: Schedules Schedules_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Schedules"
+    ADD CONSTRAINT "Schedules_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3682 (class 2606 OID 16762)
+-- Name: Schedules Schedules_contactId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Schedules"
+    ADD CONSTRAINT "Schedules_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES public."Contacts"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3683 (class 2606 OID 16767)
+-- Name: Schedules Schedules_ticketId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Schedules"
+    ADD CONSTRAINT "Schedules_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES public."Tickets"(id) ON UPDATE SET NULL ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3684 (class 2606 OID 16772)
+-- Name: Schedules Schedules_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Schedules"
+    ADD CONSTRAINT "Schedules_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."Users"(id) ON UPDATE SET NULL ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3659 (class 2606 OID 16560)
+-- Name: Settings Settings_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Settings"
+    ADD CONSTRAINT "Settings_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3704 (class 2606 OID 17029)
+-- Name: Subscriptions Subscriptions_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Subscriptions"
+    ADD CONSTRAINT "Subscriptions_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3685 (class 2606 OID 16796)
+-- Name: Tags Tags_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Tags"
+    ADD CONSTRAINT "Tags_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3666 (class 2606 OID 16626)
+-- Name: TicketNotes TicketNotes_contactId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketNotes"
+    ADD CONSTRAINT "TicketNotes_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES public."Contacts"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3667 (class 2606 OID 16631)
+-- Name: TicketNotes TicketNotes_ticketId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketNotes"
+    ADD CONSTRAINT "TicketNotes_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES public."Tickets"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3668 (class 2606 OID 16621)
+-- Name: TicketNotes TicketNotes_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketNotes"
+    ADD CONSTRAINT "TicketNotes_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."Users"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3686 (class 2606 OID 16809)
+-- Name: TicketTags TicketTags_tagId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketTags"
+    ADD CONSTRAINT "TicketTags_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES public."Tags"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3687 (class 2606 OID 16804)
+-- Name: TicketTags TicketTags_ticketId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketTags"
+    ADD CONSTRAINT "TicketTags_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES public."Tickets"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3671 (class 2606 OID 16674)
+-- Name: TicketTraking TicketTraking_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketTraking"
+    ADD CONSTRAINT "TicketTraking_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3672 (class 2606 OID 16669)
+-- Name: TicketTraking TicketTraking_ticketId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketTraking"
+    ADD CONSTRAINT "TicketTraking_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES public."Tickets"(id) ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3673 (class 2606 OID 16684)
+-- Name: TicketTraking TicketTraking_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketTraking"
+    ADD CONSTRAINT "TicketTraking_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."Users"(id) ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3674 (class 2606 OID 16679)
+-- Name: TicketTraking TicketTraking_whatsappId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."TicketTraking"
+    ADD CONSTRAINT "TicketTraking_whatsappId_fkey" FOREIGN KEY ("whatsappId") REFERENCES public."Whatsapps"(id) ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3647 (class 2606 OID 16590)
+-- Name: Tickets Tickets_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Tickets"
+    ADD CONSTRAINT "Tickets_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3648 (class 2606 OID 16431)
+-- Name: Tickets Tickets_contactId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Tickets"
+    ADD CONSTRAINT "Tickets_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES public."Contacts"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3649 (class 2606 OID 16534)
+-- Name: Tickets Tickets_queueId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Tickets"
+    ADD CONSTRAINT "Tickets_queueId_fkey" FOREIGN KEY ("queueId") REFERENCES public."Queues"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3650 (class 2606 OID 16748)
+-- Name: Tickets Tickets_queueOptionId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Tickets"
+    ADD CONSTRAINT "Tickets_queueOptionId_fkey" FOREIGN KEY ("queueOptionId") REFERENCES public."QueueOptions"(id) ON UPDATE SET NULL ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3651 (class 2606 OID 16436)
+-- Name: Tickets Tickets_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Tickets"
+    ADD CONSTRAINT "Tickets_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."Users"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3652 (class 2606 OID 16496)
+-- Name: Tickets Tickets_whatsappId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Tickets"
+    ADD CONSTRAINT "Tickets_whatsappId_fkey" FOREIGN KEY ("whatsappId") REFERENCES public."Whatsapps"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3675 (class 2606 OID 16703)
+-- Name: UserRatings UserRatings_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."UserRatings"
+    ADD CONSTRAINT "UserRatings_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3676 (class 2606 OID 16698)
+-- Name: UserRatings UserRatings_ticketId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."UserRatings"
+    ADD CONSTRAINT "UserRatings_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES public."Tickets"(id) ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3677 (class 2606 OID 16708)
+-- Name: UserRatings UserRatings_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."UserRatings"
+    ADD CONSTRAINT "UserRatings_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."Users"(id) ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3708 (class 2606 OID 17115)
+-- Name: UserSocketSessions UserSocketSessions_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."UserSocketSessions"
+    ADD CONSTRAINT "UserSocketSessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES public."Users"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3645 (class 2606 OID 16565)
+-- Name: Users Users_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Users"
+    ADD CONSTRAINT "Users_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3657 (class 2606 OID 16585)
+-- Name: Whatsapps Whatsapps_companyId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."Whatsapps"
+    ADD CONSTRAINT "Whatsapps_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES public."Companies"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- TOC entry 3663 (class 2606 OID 17155)
+-- Name: UserQueues fk_userqueues_queueid; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."UserQueues"
+    ADD CONSTRAINT fk_userqueues_queueid FOREIGN KEY ("queueId") REFERENCES public."Queues"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3664 (class 2606 OID 17150)
+-- Name: UserQueues fk_userqueues_userid; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."UserQueues"
+    ADD CONSTRAINT fk_userqueues_userid FOREIGN KEY ("userId") REFERENCES public."Users"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3661 (class 2606 OID 17160)
+-- Name: WhatsappQueues fk_whatsappqueues_queueid; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."WhatsappQueues"
+    ADD CONSTRAINT fk_whatsappqueues_queueid FOREIGN KEY ("queueId") REFERENCES public."Queues"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3662 (class 2606 OID 17145)
+-- Name: WhatsappQueues fk_whatsappqueues_whatsappid; Type: FK CONSTRAINT; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE ONLY public."WhatsappQueues"
+    ADD CONSTRAINT fk_whatsappqueues_whatsappid FOREIGN KEY ("whatsappId") REFERENCES public."Whatsapps"(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- TOC entry 3855 (class 0 OID 16413)
+-- Dependencies: 227
+-- Name: Contacts; Type: ROW SECURITY; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE public."Contacts" ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 3857 (class 0 OID 16441)
+-- Dependencies: 230
+-- Name: Messages; Type: ROW SECURITY; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE public."Messages" ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 3859 (class 0 OID 16522)
+-- Dependencies: 237
+-- Name: Queues; Type: ROW SECURITY; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE public."Queues" ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 3856 (class 0 OID 16422)
+-- Dependencies: 229
+-- Name: Tickets; Type: ROW SECURITY; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE public."Tickets" ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 3854 (class 0 OID 16402)
+-- Dependencies: 225
+-- Name: Users; Type: ROW SECURITY; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE public."Users" ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 3858 (class 0 OID 16461)
+-- Dependencies: 232
+-- Name: Whatsapps; Type: ROW SECURITY; Schema: public; Owner: ticketz
+--
+
+ALTER TABLE public."Whatsapps" ENABLE ROW LEVEL SECURITY;
+
+--
+-- TOC entry 3860 (class 3256 OID 17204)
+-- Name: Contacts contacts_policy; Type: POLICY; Schema: public; Owner: ticketz
+--
+
+CREATE POLICY contacts_policy ON public."Contacts" TO authenticated USING (true) WITH CHECK (true);
+
+
+--
+-- TOC entry 3864 (class 3256 OID 17208)
+-- Name: Messages messages_policy; Type: POLICY; Schema: public; Owner: ticketz
+--
+
+CREATE POLICY messages_policy ON public."Messages" TO authenticated USING (true) WITH CHECK (true);
+
+
+--
+-- TOC entry 3865 (class 3256 OID 17209)
+-- Name: Queues queues_policy; Type: POLICY; Schema: public; Owner: ticketz
+--
+
+CREATE POLICY queues_policy ON public."Queues" TO authenticated USING (true) WITH CHECK (true);
+
+
+--
+-- TOC entry 3863 (class 3256 OID 17207)
+-- Name: Tickets tickets_policy; Type: POLICY; Schema: public; Owner: ticketz
+--
+
+CREATE POLICY tickets_policy ON public."Tickets" TO authenticated USING (true) WITH CHECK (true);
+
+
+--
+-- TOC entry 3862 (class 3256 OID 17206)
+-- Name: Users users_policy; Type: POLICY; Schema: public; Owner: ticketz
+--
+
+CREATE POLICY users_policy ON public."Users" TO authenticated USING (true) WITH CHECK (true);
+
+
+--
+-- TOC entry 3861 (class 3256 OID 17205)
+-- Name: Whatsapps whatsapps_policy; Type: POLICY; Schema: public; Owner: ticketz
+--
+
+CREATE POLICY whatsapps_policy ON public."Whatsapps" TO authenticated USING (true) WITH CHECK (true);
+
+
+--
+-- TOC entry 3939 (class 0 OID 0)
+-- Dependencies: 7
+-- Name: SCHEMA public; Type: ACL; Schema: -; Owner: pg_database_owner
+--
+
+GRANT USAGE ON SCHEMA public TO web_anon;
+GRANT USAGE ON SCHEMA public TO api_writer;
+GRANT USAGE ON SCHEMA public TO authenticated;
+
+
+--
+-- TOC entry 3942 (class 0 OID 0)
+-- Dependencies: 306
+-- Name: FUNCTION unaccent(text); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.unaccent(text) TO authenticated;
+
+
+--
+-- TOC entry 3943 (class 0 OID 0)
+-- Dependencies: 305
+-- Name: FUNCTION unaccent(regdictionary, text); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.unaccent(regdictionary, text) TO authenticated;
+
+
+--
+-- TOC entry 3944 (class 0 OID 0)
+-- Dependencies: 295
+-- Name: FUNCTION unaccent_init(internal); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.unaccent_init(internal) TO authenticated;
+
+
+--
+-- TOC entry 3945 (class 0 OID 0)
+-- Dependencies: 297
+-- Name: FUNCTION unaccent_lexize(internal, internal, internal, internal); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.unaccent_lexize(internal, internal, internal, internal) TO authenticated;
+
+
+--
+-- TOC entry 3946 (class 0 OID 0)
+-- Dependencies: 293
+-- Name: FUNCTION uuid_generate_v1(); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.uuid_generate_v1() TO authenticated;
+
+
+--
+-- TOC entry 3947 (class 0 OID 0)
+-- Dependencies: 294
+-- Name: FUNCTION uuid_generate_v1mc(); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.uuid_generate_v1mc() TO authenticated;
+
+
+--
+-- TOC entry 3948 (class 0 OID 0)
+-- Dependencies: 303
+-- Name: FUNCTION uuid_generate_v3(namespace uuid, name text); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.uuid_generate_v3(namespace uuid, name text) TO authenticated;
+
+
+--
+-- TOC entry 3949 (class 0 OID 0)
+-- Dependencies: 304
+-- Name: FUNCTION uuid_generate_v4(); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.uuid_generate_v4() TO authenticated;
+
+
+--
+-- TOC entry 3950 (class 0 OID 0)
+-- Dependencies: 296
+-- Name: FUNCTION uuid_generate_v5(namespace uuid, name text); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.uuid_generate_v5(namespace uuid, name text) TO authenticated;
+
+
+--
+-- TOC entry 3951 (class 0 OID 0)
+-- Dependencies: 298
+-- Name: FUNCTION uuid_nil(); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.uuid_nil() TO authenticated;
+
+
+--
+-- TOC entry 3952 (class 0 OID 0)
+-- Dependencies: 299
+-- Name: FUNCTION uuid_ns_dns(); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.uuid_ns_dns() TO authenticated;
+
+
+--
+-- TOC entry 3953 (class 0 OID 0)
+-- Dependencies: 301
+-- Name: FUNCTION uuid_ns_oid(); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.uuid_ns_oid() TO authenticated;
+
+
+--
+-- TOC entry 3954 (class 0 OID 0)
+-- Dependencies: 300
+-- Name: FUNCTION uuid_ns_url(); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.uuid_ns_url() TO authenticated;
+
+
+--
+-- TOC entry 3955 (class 0 OID 0)
+-- Dependencies: 302
+-- Name: FUNCTION uuid_ns_x500(); Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT ALL ON FUNCTION public.uuid_ns_x500() TO authenticated;
+
+
+--
+-- TOC entry 3956 (class 0 OID 0)
+-- Dependencies: 275
+-- Name: TABLE "Announcements"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Announcements" TO api_writer;
+GRANT ALL ON TABLE public."Announcements" TO authenticated;
+
+
+--
+-- TOC entry 3958 (class 0 OID 0)
+-- Dependencies: 274
+-- Name: SEQUENCE "Announcements_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Announcements_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Announcements_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3959 (class 0 OID 0)
+-- Dependencies: 262
+-- Name: TABLE "Baileys"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Baileys" TO api_writer;
+GRANT ALL ON TABLE public."Baileys" TO authenticated;
+
+
+--
+-- TOC entry 3960 (class 0 OID 0)
+-- Dependencies: 288
+-- Name: TABLE "BaileysKeys"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."BaileysKeys" TO api_writer;
+GRANT ALL ON TABLE public."BaileysKeys" TO authenticated;
+
+
+--
+-- TOC entry 3962 (class 0 OID 0)
+-- Dependencies: 261
+-- Name: SEQUENCE "Baileys_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Baileys_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Baileys_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3963 (class 0 OID 0)
+-- Dependencies: 270
+-- Name: TABLE "CampaignSettings"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."CampaignSettings" TO api_writer;
+GRANT ALL ON TABLE public."CampaignSettings" TO authenticated;
+
+
+--
+-- TOC entry 3965 (class 0 OID 0)
+-- Dependencies: 269
+-- Name: SEQUENCE "CampaignSettings_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."CampaignSettings_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."CampaignSettings_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3966 (class 0 OID 0)
+-- Dependencies: 273
+-- Name: TABLE "CampaignShipping"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."CampaignShipping" TO api_writer;
+GRANT ALL ON TABLE public."CampaignShipping" TO authenticated;
+
+
+--
+-- TOC entry 3968 (class 0 OID 0)
+-- Dependencies: 272
+-- Name: SEQUENCE "CampaignShipping_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."CampaignShipping_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."CampaignShipping_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3969 (class 0 OID 0)
+-- Dependencies: 268
+-- Name: TABLE "Campaigns"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Campaigns" TO api_writer;
+GRANT ALL ON TABLE public."Campaigns" TO authenticated;
+
+
+--
+-- TOC entry 3971 (class 0 OID 0)
+-- Dependencies: 267
+-- Name: SEQUENCE "Campaigns_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Campaigns_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Campaigns_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3972 (class 0 OID 0)
+-- Dependencies: 281
+-- Name: TABLE "ChatMessages"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."ChatMessages" TO api_writer;
+GRANT ALL ON TABLE public."ChatMessages" TO authenticated;
+
+
+--
+-- TOC entry 3974 (class 0 OID 0)
+-- Dependencies: 280
+-- Name: SEQUENCE "ChatMessages_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."ChatMessages_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."ChatMessages_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3975 (class 0 OID 0)
+-- Dependencies: 279
+-- Name: TABLE "ChatUsers"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."ChatUsers" TO api_writer;
+GRANT ALL ON TABLE public."ChatUsers" TO authenticated;
+
+
+--
+-- TOC entry 3977 (class 0 OID 0)
+-- Dependencies: 278
+-- Name: SEQUENCE "ChatUsers_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."ChatUsers_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."ChatUsers_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3978 (class 0 OID 0)
+-- Dependencies: 277
+-- Name: TABLE "Chats"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Chats" TO api_writer;
+GRANT ALL ON TABLE public."Chats" TO authenticated;
+
+
+--
+-- TOC entry 3980 (class 0 OID 0)
+-- Dependencies: 276
+-- Name: SEQUENCE "Chats_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Chats_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Chats_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3981 (class 0 OID 0)
+-- Dependencies: 241
+-- Name: TABLE "Companies"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Companies" TO api_writer;
+GRANT ALL ON TABLE public."Companies" TO authenticated;
+
+
+--
+-- TOC entry 3983 (class 0 OID 0)
+-- Dependencies: 240
+-- Name: SEQUENCE "Companies_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Companies_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Companies_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3984 (class 0 OID 0)
+-- Dependencies: 234
+-- Name: TABLE "ContactCustomFields"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."ContactCustomFields" TO api_writer;
+GRANT ALL ON TABLE public."ContactCustomFields" TO authenticated;
+
+
+--
+-- TOC entry 3986 (class 0 OID 0)
+-- Dependencies: 233
+-- Name: SEQUENCE "ContactCustomFields_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."ContactCustomFields_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."ContactCustomFields_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3987 (class 0 OID 0)
+-- Dependencies: 266
+-- Name: TABLE "ContactListItems"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."ContactListItems" TO api_writer;
+GRANT ALL ON TABLE public."ContactListItems" TO authenticated;
+
+
+--
+-- TOC entry 3989 (class 0 OID 0)
+-- Dependencies: 265
+-- Name: SEQUENCE "ContactListItems_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."ContactListItems_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."ContactListItems_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3990 (class 0 OID 0)
+-- Dependencies: 264
+-- Name: TABLE "ContactLists"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."ContactLists" TO api_writer;
+GRANT ALL ON TABLE public."ContactLists" TO authenticated;
+
+
+--
+-- TOC entry 3992 (class 0 OID 0)
+-- Dependencies: 263
+-- Name: SEQUENCE "ContactLists_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."ContactLists_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."ContactLists_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3993 (class 0 OID 0)
+-- Dependencies: 227
+-- Name: TABLE "Contacts"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Contacts" TO api_writer;
+GRANT ALL ON TABLE public."Contacts" TO authenticated;
+
+
+--
+-- TOC entry 3995 (class 0 OID 0)
+-- Dependencies: 226
+-- Name: SEQUENCE "Contacts_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Contacts_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Contacts_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3996 (class 0 OID 0)
+-- Dependencies: 249
+-- Name: TABLE "Helps"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Helps" TO api_writer;
+GRANT ALL ON TABLE public."Helps" TO authenticated;
+
+
+--
+-- TOC entry 3998 (class 0 OID 0)
+-- Dependencies: 248
+-- Name: SEQUENCE "Helps_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Helps_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Helps_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 3999 (class 0 OID 0)
+-- Dependencies: 285
+-- Name: TABLE "Invoices"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Invoices" TO api_writer;
+GRANT ALL ON TABLE public."Invoices" TO authenticated;
+
+
+--
+-- TOC entry 4001 (class 0 OID 0)
+-- Dependencies: 284
+-- Name: SEQUENCE "Invoices_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Invoices_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Invoices_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4002 (class 0 OID 0)
+-- Dependencies: 230
+-- Name: TABLE "Messages"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Messages" TO api_writer;
+GRANT ALL ON TABLE public."Messages" TO authenticated;
+
+
+--
+-- TOC entry 4003 (class 0 OID 0)
+-- Dependencies: 287
+-- Name: TABLE "OldMessages"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."OldMessages" TO api_writer;
+GRANT ALL ON TABLE public."OldMessages" TO authenticated;
+
+
+--
+-- TOC entry 4005 (class 0 OID 0)
+-- Dependencies: 286
+-- Name: SEQUENCE "OldMessages_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."OldMessages_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."OldMessages_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4006 (class 0 OID 0)
+-- Dependencies: 243
+-- Name: TABLE "Plans"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Plans" TO api_writer;
+GRANT ALL ON TABLE public."Plans" TO authenticated;
+
+
+--
+-- TOC entry 4008 (class 0 OID 0)
+-- Dependencies: 242
+-- Name: SEQUENCE "Plans_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Plans_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Plans_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4009 (class 0 OID 0)
+-- Dependencies: 255
+-- Name: TABLE "QueueOptions"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."QueueOptions" TO api_writer;
+GRANT ALL ON TABLE public."QueueOptions" TO authenticated;
+
+
+--
+-- TOC entry 4011 (class 0 OID 0)
+-- Dependencies: 254
+-- Name: SEQUENCE "QueueOptions_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."QueueOptions_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."QueueOptions_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4012 (class 0 OID 0)
+-- Dependencies: 237
+-- Name: TABLE "Queues"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Queues" TO api_writer;
+GRANT ALL ON TABLE public."Queues" TO authenticated;
+
+
+--
+-- TOC entry 4014 (class 0 OID 0)
+-- Dependencies: 236
+-- Name: SEQUENCE "Queues_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Queues_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Queues_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4015 (class 0 OID 0)
+-- Dependencies: 247
+-- Name: TABLE "QuickMessages"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."QuickMessages" TO api_writer;
+GRANT ALL ON TABLE public."QuickMessages" TO authenticated;
+
+
+--
+-- TOC entry 4017 (class 0 OID 0)
+-- Dependencies: 246
+-- Name: SEQUENCE "QuickMessages_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."QuickMessages_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."QuickMessages_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4018 (class 0 OID 0)
+-- Dependencies: 257
+-- Name: TABLE "Schedules"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Schedules" TO api_writer;
+GRANT ALL ON TABLE public."Schedules" TO authenticated;
+
+
+--
+-- TOC entry 4020 (class 0 OID 0)
+-- Dependencies: 256
+-- Name: SEQUENCE "Schedules_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Schedules_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Schedules_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4021 (class 0 OID 0)
+-- Dependencies: 290
+-- Name: TABLE "SequelizeData"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."SequelizeData" TO api_writer;
+GRANT ALL ON TABLE public."SequelizeData" TO authenticated;
+
+
+--
+-- TOC entry 4022 (class 0 OID 0)
+-- Dependencies: 223
+-- Name: TABLE "SequelizeMeta"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."SequelizeMeta" TO api_writer;
+GRANT ALL ON TABLE public."SequelizeMeta" TO authenticated;
+
+
+--
+-- TOC entry 4023 (class 0 OID 0)
+-- Dependencies: 235
+-- Name: TABLE "Settings"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Settings" TO api_writer;
+GRANT ALL ON TABLE public."Settings" TO authenticated;
+
+
+--
+-- TOC entry 4025 (class 0 OID 0)
+-- Dependencies: 271
+-- Name: SEQUENCE "Settings_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Settings_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Settings_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4026 (class 0 OID 0)
+-- Dependencies: 283
+-- Name: TABLE "Subscriptions"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Subscriptions" TO api_writer;
+GRANT ALL ON TABLE public."Subscriptions" TO authenticated;
+
+
+--
+-- TOC entry 4028 (class 0 OID 0)
+-- Dependencies: 282
+-- Name: SEQUENCE "Subscriptions_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Subscriptions_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Subscriptions_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4029 (class 0 OID 0)
+-- Dependencies: 259
+-- Name: TABLE "Tags"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Tags" TO api_writer;
+GRANT ALL ON TABLE public."Tags" TO authenticated;
+
+
+--
+-- TOC entry 4031 (class 0 OID 0)
+-- Dependencies: 258
+-- Name: SEQUENCE "Tags_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Tags_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Tags_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4032 (class 0 OID 0)
+-- Dependencies: 245
+-- Name: TABLE "TicketNotes"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."TicketNotes" TO api_writer;
+GRANT ALL ON TABLE public."TicketNotes" TO authenticated;
+
+
+--
+-- TOC entry 4034 (class 0 OID 0)
+-- Dependencies: 244
+-- Name: SEQUENCE "TicketNotes_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."TicketNotes_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."TicketNotes_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4035 (class 0 OID 0)
+-- Dependencies: 260
+-- Name: TABLE "TicketTags"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."TicketTags" TO api_writer;
+GRANT ALL ON TABLE public."TicketTags" TO authenticated;
+
+
+--
+-- TOC entry 4036 (class 0 OID 0)
+-- Dependencies: 251
+-- Name: TABLE "TicketTraking"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."TicketTraking" TO api_writer;
+GRANT ALL ON TABLE public."TicketTraking" TO authenticated;
+
+
+--
+-- TOC entry 4038 (class 0 OID 0)
+-- Dependencies: 250
+-- Name: SEQUENCE "TicketTraking_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."TicketTraking_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."TicketTraking_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4039 (class 0 OID 0)
+-- Dependencies: 229
+-- Name: TABLE "Tickets"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Tickets" TO api_writer;
+GRANT ALL ON TABLE public."Tickets" TO authenticated;
+
+
+--
+-- TOC entry 4041 (class 0 OID 0)
+-- Dependencies: 228
+-- Name: SEQUENCE "Tickets_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Tickets_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Tickets_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4042 (class 0 OID 0)
+-- Dependencies: 239
+-- Name: TABLE "UserQueues"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."UserQueues" TO api_writer;
+GRANT ALL ON TABLE public."UserQueues" TO authenticated;
+
+
+--
+-- TOC entry 4043 (class 0 OID 0)
+-- Dependencies: 253
+-- Name: TABLE "UserRatings"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."UserRatings" TO api_writer;
+GRANT ALL ON TABLE public."UserRatings" TO authenticated;
+
+
+--
+-- TOC entry 4045 (class 0 OID 0)
+-- Dependencies: 252
+-- Name: SEQUENCE "UserRatings_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."UserRatings_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."UserRatings_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4046 (class 0 OID 0)
+-- Dependencies: 289
+-- Name: TABLE "UserSocketSessions"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."UserSocketSessions" TO api_writer;
+GRANT ALL ON TABLE public."UserSocketSessions" TO authenticated;
+
+
+--
+-- TOC entry 4047 (class 0 OID 0)
+-- Dependencies: 225
+-- Name: TABLE "Users"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Users" TO api_writer;
+GRANT ALL ON TABLE public."Users" TO authenticated;
+
+
+--
+-- TOC entry 4049 (class 0 OID 0)
+-- Dependencies: 224
+-- Name: SEQUENCE "Users_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Users_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Users_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4050 (class 0 OID 0)
+-- Dependencies: 238
+-- Name: TABLE "WhatsappQueues"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."WhatsappQueues" TO api_writer;
+GRANT ALL ON TABLE public."WhatsappQueues" TO authenticated;
+
+
+--
+-- TOC entry 4051 (class 0 OID 0)
+-- Dependencies: 232
+-- Name: TABLE "Whatsapps"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public."Whatsapps" TO api_writer;
+GRANT ALL ON TABLE public."Whatsapps" TO authenticated;
+
+
+--
+-- TOC entry 4053 (class 0 OID 0)
+-- Dependencies: 231
+-- Name: SEQUENCE "Whatsapps_id_seq"; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT USAGE ON SEQUENCE public."Whatsapps_id_seq" TO api_writer;
+GRANT ALL ON SEQUENCE public."Whatsapps_id_seq" TO authenticated;
+
+
+--
+-- TOC entry 4054 (class 0 OID 0)
+-- Dependencies: 291
+-- Name: TABLE budibase_contacts; Type: ACL; Schema: public; Owner: ticketz
+--
+
+GRANT SELECT,UPDATE ON TABLE public.budibase_contacts TO authenticated;
+
+
+-- Completed on 2025-04-17 10:20:53 UTC
+
+--
+-- PostgreSQL database dump complete
+--
+

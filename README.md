@@ -1,143 +1,196 @@
-Ticketz usando túnel Zero Trust da Cloudflare
-=============================================
+# Ticketz API
 
-O Ticketz é basicamente composto por dois containers, eles podem ser instalados de diversas formas.
+Sistema de gestión de tickets y atención al cliente con integración de WhatsApp.
 
-Este repositório contém um exemplo para instalação utilizando o serviço de
-túnel "zero trust" da Cloudflare. Pode ser instalado em qualquer sistema
-que suporte Docker
+## Requisitos Previos
 
-Preparação do ambiente
-----------------------
+- Docker
+- Docker Compose
+- Git
+- Si usas Cloudflare:
+  - Cuenta en Cloudflare
+  - Token de túnel de Cloudflare
+  - Dominio configurado en Cloudflare
 
-### Docker
+## Instalación Automática
 
-#### Windows
-
-Para execução no Windows é necessário ter instalado o [Docker Desktop](https://www.docker.com/products/docker-desktop/).
-
-#### Linux
-
-Para execução no Linux é necessário ter o Docker instalado. É recomendada a utilização do Docker a partir do projeto oficial.
-
-A forma mais rápida de instalar o Docker no Linux é através do seguinte comando (estando como root):
-
+1. Clona el repositorio:
 ```bash
-curl -sSL https://get.docker.com | sh
+git clone https://github.com/tu-usuario/ticketzAPI.git
+cd ticketzAPI
 ```
 
-### Download do projeto
-
-O conteúdo deste repositório pode ser colocado em uma pasta, preferencialmente com o nome de `ticketz-docker-cloudflare`
-
-Se preferir pode baixar utilizando o git:
-
-```
-git clone https://github.com/ticketz-oss/ticketz-docker-cloudflare
-```
-
-Configuração da Cloudflare
---------------------------
-
-### Pré requisito
-
-Ter um domínio hospedado na Cloudflare - essa parte fica fora do escopo desse guia
-
-### Criação do túnel
-
-No painel inicial da Cloudflare, entrar em "Zero Trust" no menu da esquerda.
-
-Selecionar a opção "Redes -> Túneis"
-
-Clicar em "+ Criar um Túnel"
-
-Selecionar o tipo "Cloudflared", nomear o túnel e salvar
-
-O Túnel já estará criado, na tela seguinte será exibida uma lista de sistemas nos quais o túnel pode ser instalado... Clicar na opção "Docker"
-
-Logo abaixo haverá um comando longo que deve ser copiado. Desse comando precisamos só a parte que vem após o "--token", será uma string longa de caracteres aleatórios. Ela deve ser salva para a configuração do sistema posteriormente.
-
-### Criação do hostname
-
-Voltando para a tela Redes -> Túneis, clicar sobre o nome do túnel recém criado e após isso em Editar.
-
-Selecionar a aba "Nome do host público"
-
-Clicar em "+ Adicionar um nome do host público"
-
-Selecionar um nome de subdomínoi e o domínio para a sua aplicação.
-
-O campo "caminho" fica vazio
-
-O campo "serviço" seleciona "HTTP"
-
-No campo "URL" preencher apenas com "frontend" 
-
-Salvar as alterações
-
-Está concluída a configuração na cloudflare.
-
-
-Configuração
-------------
-
-Todos os comandos a seguir devem ser digitados estando dentro da pasta deste projeto, utilizando a linha de comando no Terminal do Linux como root ou no Windows Powershell.
-
-Os arquivos `example.env-backend` e `example.env-frontend` devem ser copiados para `.env-backend` e `.env-frontend` respectivamente.
-
-Nos arquivos `.env-backend` e `.env-frontend` é absolutamente necessário editar o nome do host para refletir o nome que deseja utilizar.
-
-Criar um arquivo chamado `.env-cloudflared`, nesse arquivo preencher apenas uma linha com o token obtido da cloudflare, no seguinte formato:
-
-```
-TUNNEL_TOKEN=conteúdo do token
-```
-
-Execução
---------
-
-Depois de copiados e configurados os arquivos `.env-backend`, `.env-frontend` e `.env-cloudflared` basta executar o comando:
-
+2. Ejecuta el script de instalación:
 ```bash
-docker compose up -d
+chmod +x install.sh
+./install.sh
 ```
 
-Em alguns minutos o sistema estará no ar no endereço configurado.
+3. Sigue las instrucciones en pantalla:
+   - Selecciona si usarás Cloudflare
+   - Ingresa los datos de configuración solicitados
+   - El script creará los archivos de configuración necesarios
 
-O login é o email configurado no arquivo `.env-backend`, o padrão é `admin@ticketz.host` e a senha é `123456`
+## Instalación Manual
 
-Desligando o Serviço
---------------------
-
-Caso deseje encerrar a execução do Ticketz basta digitar o comando:
-
+1. Clona el repositorio:
 ```bash
-docker compose down
+git clone https://github.com/tu-usuario/ticketzAPI.git
+cd ticketzAPI
 ```
 
-Para inicializar novamente basta repetir o comando descrito no item anterior.
+2. Crea los archivos de configuración:
 
-Atualizações
-------------
+### Sin Cloudflare
 
-### Atualização manual
-
-Para atualizar o Ticketz basta abrir o Terminal do Linux ou Windows Powershell, posicionar-se na pasta de instalação e digitar a seguinte sequência de comandos:
-
+Crea el archivo `.env`:
 ```bash
-docker compose pull
+# PostgreSQL Configuration
+POSTGRES_USER=ticketz
+POSTGRES_DB=ticketz
+POSTGRES_PASSWORD=tu_contraseña
+TZ=UTC
 
-docker compose down
+# PostgREST Configuration
+POSTGREST_PORT=3001
+PGRST_DB_URI=postgres://ticketz:tu_contraseña@postgres:5432/ticketz
+PGRST_DB_SCHEMA=public
+PGRST_DB_ANON_ROLE=web_anon
+PGRST_JWT_SECRET=tu_secreto_jwt_min_32_caracteres
+PGRST_JWT_AUD=tu_dominio_api
+PGRST_CORS_ALLOW_ORIGIN=tu_dominio_frontend
 
-docker compose up -d
+# pgAdmin Configuration
+PGADMIN_EMAIL=tu_email
+PGADMIN_PASSWORD=tu_contraseña
+PGADMIN_PORT=8081
+
+# Backend Configuration
+NODE_ENV=production
+BACKEND_URL=http://tu_ip:3001
+FRONTEND_URL=http://tu_ip:3001
+PROXY_PORT=8080
+REDIS_URI=redis://redis:6379
+DB_CONNECTION=postgres
+DB_HOST=postgres
+DB_PORT=5432
+DB_DATABASE=ticketz
+DB_USERNAME=ticketz
+DB_PASSWORD=tu_contraseña
+
+# Frontend Configuration
+REACT_APP_BACKEND_URL=http://tu_ip:3001
+REACT_APP_HOURS_CLOSE_TICKETS_AUTO=24
+REACT_APP_AUTO_OPEN_TICKET=true
 ```
 
-### Ativando atualizações automáticas
+### Con Cloudflare
 
-É possível ativar as atualizações automáticas, que serão executadas sempre que o projeto Ticketz tiver uma nova versão lançada.
+Crea los archivos `.env`, `.env-cloudflared` y `.env-frontend`:
 
-Para ativar essa funcionalidade basta acessar o Terminal do Linux ou Windows Powershell, posicionar-se na pasta do projeto e digitar o seguinte comando:
-
+`.env-cloudflared`:
 ```bash
-docker compose up watchtower
+TUNNEL_TOKEN=tu_token_cloudflare
 ```
+
+`.env-frontend`:
+```bash
+FRONTEND_HOST=tu_subdominio.tu_dominio.com
+BACKEND_HOST=tu_subdominio_api.tu_dominio.com
+```
+
+3. Inicia los servicios:
+```bash
+# Sin Cloudflare
+docker-compose up -d
+
+# Con Cloudflare
+docker-compose -f docker-compose.yaml -f docker-compose.cloudflare.yaml up -d
+```
+
+## Configuración de Cloudflare
+
+Si usas Cloudflare, sigue estos pasos:
+
+1. Ve al panel de control de Cloudflare
+2. Agrega los siguientes registros DNS:
+   - `tu_subdominio.tu_dominio.com` → IP de tu servidor
+   - `tu_subdominio_api.tu_dominio.com` → IP de tu servidor
+3. Espera a que los DNS se propaguen (puede tomar hasta 24 horas)
+
+## Acceso a los Servicios
+
+### Sin Cloudflare
+- Frontend: http://tu_ip:3001
+- Backend: http://tu_ip:3001
+- pgAdmin: http://tu_ip:8081
+
+### Con Cloudflare
+- Frontend: https://tu_subdominio.tu_dominio.com
+- Backend: https://tu_subdominio_api.tu_dominio.com
+- pgAdmin: http://tu_ip:8081
+
+## Credenciales pgAdmin
+- Email: el que configuraste
+- Contraseña: la que configuraste
+
+## Solución de Problemas
+
+Si encuentras algún error:
+
+1. Revisa los logs:
+```bash
+docker-compose logs
+```
+
+2. Verifica que los puertos estén disponibles:
+```bash
+netstat -tuln | grep LISTEN
+```
+
+3. Verifica que los contenedores estén corriendo:
+```bash
+docker-compose ps
+```
+
+## Actualización
+
+Para actualizar el sistema:
+
+1. Detén los contenedores:
+```bash
+docker-compose down
+```
+
+2. Actualiza el código:
+```bash
+git pull
+```
+
+3. Reconstruye las imágenes:
+```bash
+docker-compose build
+```
+
+4. Inicia los servicios:
+```bash
+# Sin Cloudflare
+docker-compose up -d
+
+# Con Cloudflare
+docker-compose -f docker-compose.yaml -f docker-compose.cloudflare.yaml up -d
+```
+
+## Contribución
+
+Las contribuciones son bienvenidas. Por favor, sigue estos pasos:
+
+1. Haz un fork del repositorio
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Haz commit de tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## Licencia
+
+Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.

@@ -1,0 +1,22 @@
+{
+  "name": "ticketz_api",
+  "version": "1.0.0",
+  "description": "Sistema de gestión de tickets basado en WhatsApp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hotzizle/ticketz_api.git"
+  },
+  "keywords": [
+    "ticketz",
+    "whatsapp",
+    "tickets",
+    "postgres",
+    "postgrest"
+  ],
+  "author": "hotzizle",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hotzizle/ticketz_api/issues"
+  },
+  "homepage": "https://github.com/hotzizle/ticketz_api#readme"
+} 
