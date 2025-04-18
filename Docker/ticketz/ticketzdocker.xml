@@ -46,10 +46,14 @@ https://github.com/hotzizle/ticketzAPI</Overview>
   <!-- Configuración de Red -->
   <Config Name="Frontend Host" Target="FRONTEND_HOST" Default="10.0.0.250" Mode="" Description="IP o dominio del frontend" Type="Variable" Display="always" Required="true" Mask="false">10.0.0.250</Config>
   <Config Name="Backend Path" Target="BACKEND_PATH" Default="/backend" Mode="" Description="Ruta del backend (ej: /backend)" Type="Variable" Display="always" Required="true" Mask="false">/backend</Config>
+  <Config Name="Backend Domain" Target="BACKEND_DOMAIN" Default="api.ticketz.somoslacomunidad.com" Mode="" Description="Dominio para el backend" Type="Variable" Display="always" Required="true" Mask="false">api.ticketz.somoslacomunidad.com</Config>
+
+  <!-- Cloudflare -->
+  <Config Name="Cloudflare Tunnel Token" Target="CF_TUNNEL_TOKEN" Default="" Mode="" Description="Token del túnel de Cloudflare" Type="Variable" Display="always" Required="true" Mask="true"/>
 
   <!-- Seguridad -->
-  <Config Name="JWT Secret" Target="PGRST_JWT_SECRET" Default="changeme" Mode="" Description="Secreto para JWT (Por defecto: changeme)" Type="Variable" Display="always" Required="true" Mask="true">changeme</Config>
-  <Config Name="JWT Audience" Target="PGRST_JWT_AUD" Default="http://10.0.0.250:3001" Mode="" Description="URL de la API para JWT" Type="Variable" Display="always" Required="true" Mask="false">http://10.0.0.250:3001</Config>
+  <Config Name="JWT Secret" Target="PGRST_JWT_SECRET" Default="changeme" Mode="" Description="Secreto para JWT - Debe ser una cadena larga y segura (mínimo 32 caracteres)" Type="Variable" Display="always" Required="true" Mask="true">changeme</Config>
+  <Config Name="JWT Audience" Target="PGRST_JWT_AUD" Default="" Mode="" Description="URL de la API para JWT (ejemplo: api.ticketz.tudominio.com)" Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="CORS Origins" Target="PGRST_CORS_ALLOW_ORIGIN" Default="http://10.0.0.250:3001" Mode="" Description="URLs permitidas para CORS (separadas por comas)" Type="Variable" Display="always" Required="true" Mask="false">http://10.0.0.250:3001</Config>
 
   <!-- Administración -->
