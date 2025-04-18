@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>ticketzdocker</Name>
+  <Repository>ghcr.io/hotzizle/ticketzapi:latest</Repository>
+  <Registry>https://ghcr.io/hotzizle/ticketzapi</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/hotzizle/ticketzAPI/issues</Support>
+  <Project>https://github.com/hotzizle/ticketzAPI</Project>
+  <Overview>Sistema de gestión de tickets basado en WhatsApp, construido con Node.js, React y PostgreSQL.&#xD;
+&#xD;
+Características principales:&#xD;
+- Gestión de tickets vía WhatsApp&#xD;
+- Interfaz moderna y responsive&#xD;
+- API RESTful con PostgREST&#xD;
+- Base de datos PostgreSQL&#xD;
+- Panel de administración con pgAdmin&#xD;
+&#xD;
+Para más información y soporte, visita:&#xD;
+https://github.com/hotzizle/ticketzAPI</Overview>
+  <Category>Business:Tools:Messaging Network:Communication</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/hotzizle/ticketzAPI/main/unraid/ticketz-api/ticketz-api.xml</TemplateURL>
+  <Icon>https://avatars.githubusercontent.com/u/161159746?s=200&v=4</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled>1744356320</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>PostgreSQL y Redis son necesarios para el funcionamiento del sistema</Requires>
+
+  <!-- Puertos -->
+  <Config Name="Frontend Port" Target="3000" Default="3000" Mode="tcp" Description="Puerto para acceder al frontend" Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="Backend Port" Target="3001" Default="3001" Mode="tcp" Description="Puerto para la API" Type="Port" Display="always" Required="true" Mask="false">3001</Config>
+  <Config Name="PostgreSQL Port" Target="5432" Default="5432" Mode="tcp" Description="Puerto para PostgreSQL" Type="Port" Display="always" Required="true" Mask="false">5432</Config>
+  <Config Name="pgAdmin Port" Target="8081" Default="8081" Mode="tcp" Description="Puerto para acceder a pgAdmin" Type="Port" Display="always" Required="true" Mask="false">8081</Config>
+
+  <!-- Base de Datos -->
+  <Config Name="PostgreSQL User" Target="POSTGRES_USER" Default="ticketz" Mode="" Description="Usuario de PostgreSQL" Type="Variable" Display="always" Required="true" Mask="false">ticketz</Config>
+  <Config Name="PostgreSQL Database" Target="POSTGRES_DB" Default="ticketz" Mode="" Description="Nombre de la base de datos" Type="Variable" Display="always" Required="true" Mask="false">ticketz</Config>
+  <Config Name="PostgreSQL Password" Target="POSTGRES_PASSWORD" Default="changeme" Mode="" Description="Contraseña de PostgreSQL (Por defecto: changeme)" Type="Variable" Display="always" Required="true" Mask="true">changeme</Config>
+
+  <!-- Configuración de Red -->
+  <Config Name="Frontend Host" Target="FRONTEND_HOST" Default="10.0.0.250" Mode="" Description="IP o dominio del frontend" Type="Variable" Display="always" Required="true" Mask="false">10.0.0.250</Config>
+  <Config Name="Backend Path" Target="BACKEND_PATH" Default="/backend" Mode="" Description="Ruta del backend (ej: /backend)" Type="Variable" Display="always" Required="true" Mask="false">/backend</Config>
+
+  <!-- Seguridad -->
+  <Config Name="JWT Secret" Target="PGRST_JWT_SECRET" Default="changeme" Mode="" Description="Secreto para JWT (Por defecto: changeme)" Type="Variable" Display="always" Required="true" Mask="true">changeme</Config>
+  <Config Name="JWT Audience" Target="PGRST_JWT_AUD" Default="http://10.0.0.250:3001" Mode="" Description="URL de la API para JWT" Type="Variable" Display="always" Required="true" Mask="false">http://10.0.0.250:3001</Config>
+  <Config Name="CORS Origins" Target="PGRST_CORS_ALLOW_ORIGIN" Default="http://10.0.0.250:3001" Mode="" Description="URLs permitidas para CORS (separadas por comas)" Type="Variable" Display="always" Required="true" Mask="false">http://10.0.0.250:3001</Config>
+
+  <!-- Administración -->
+  <Config Name="pgAdmin Email" Target="PGADMIN_EMAIL" Default="admin@ticketz.host" Mode="" Description="Email para acceder a pgAdmin" Type="Variable" Display="always" Required="true" Mask="false">admin@ticketz.host</Config>
+  <Config Name="pgAdmin Password" Target="PGADMIN_PASSWORD" Default="changeme" Mode="" Description="Contraseña para pgAdmin (Por defecto: changeme)" Type="Variable" Display="always" Required="true" Mask="true">changeme</Config>
+
+  <!-- Configuración Adicional -->
+  <Config Name="Admin Email" Target="EMAIL_ADDRESS" Default="admin@ticketz.host" Mode="" Description="Email del administrador del sistema" Type="Variable" Display="advanced" Required="false" Mask="false">admin@ticketz.host</Config>
+  <Config Name="Time Zone" Target="TZ" Default="UTC" Mode="" Description="Zona horaria (ej: America/Los_Angeles)" Type="Variable" Display="advanced" Required="false" Mask="false">UTC</Config>
+
+  <!-- Volúmenes -->
+  <Config Name="PostgreSQL Data" Target="/var/lib/postgresql/data" Default="/mnt/user/appdata/ticketzdocker/postgres" Mode="rw" Description="Directorio para datos de PostgreSQL" Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/ticketzdocker/postgres</Config>
+  <Config Name="Redis Data" Target="/data" Default="/mnt/user/appdata/ticketzdocker/redis" Mode="rw" Description="Directorio para datos de Redis" Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/ticketzdocker/redis</Config>
+  <Config Name="Config" Target="/app/config" Default="/mnt/user/appdata/ticketzdocker/config" Mode="rw" Description="Directorio para archivos de configuración" Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/ticketzdocker/config</Config>
+</Container> 
