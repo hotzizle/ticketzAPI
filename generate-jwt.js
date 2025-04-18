@@ -1,13 +1,24 @@
 const jwt = require('jsonwebtoken');
 
-// Reemplaza esto con la misma clave secreta que usas en PGRST_JWT_SECRET
-const secret = '4bad933cb91663ef24e2a8422342a47dc665531906bfaa35b44a0bd92260935059217098331e32b1489ae0b013360e2ae0100346c0aa67946c3b8057ad4d3bc7';
+// Usar la variable de entorno PGRST_JWT_SECRET
+const secret = process.env.PGRST_JWT_SECRET;
+
+if (!secret) {
+  console.error('Error: PGRST_JWT_SECRET no está definido');
+  process.exit(1);
+}
+
+// Verificar que PGRST_JWT_AUD esté definido
+if (!process.env.PGRST_JWT_AUD) {
+  console.error('Error: PGRST_JWT_AUD no está definido');
+  process.exit(1);
+}
 
 // Token para rol authenticated
 const authenticatedPayload = {
   role: 'authenticated',
   exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // 1 año (365 días)
-  aud: 'wsapi.somoslacomunidad.com' // Debe coincidir con PGRST_JWT_AUD
+  aud: process.env.PGRST_JWT_AUD // Debe coincidir con el valor en el XML
 };
 
 const authenticatedToken = jwt.sign(authenticatedPayload, secret);
