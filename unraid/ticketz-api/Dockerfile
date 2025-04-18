@@ -1,4 +1,4 @@
-FROM hotzizle/ticketz:latest
+FROM ghcr.io/hotzizle/ticketzapi:latest
 
 # Copiar archivos de configuración
 COPY docker-compose.yaml /app/
